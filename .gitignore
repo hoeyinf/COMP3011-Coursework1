@@ -1,0 +1,4 @@
+venv/
+planning/
+*.csv
+__pycache__
