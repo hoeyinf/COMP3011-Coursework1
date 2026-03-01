@@ -45,8 +45,8 @@ class Nutrition(models.Model):
     fiber = models.FloatField(null=True, blank=True,
                              validators=[MinValueValidator(0)])
     
-class Fridge(models.Model):
-    user = models.OneToOneField("auth.User", on_delete=models.CASCADE)
+class UserIngredients(models.Model):
+    user = models.ForeignKey("auth.User", on_delete=models.CASCADE)
     ingredient_id = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
     quantity = models.IntegerField(validators=[MinValueValidator(1)])
-    available = models.BooleanField(default=True)
+    fridge = models.BooleanField(default=True)
