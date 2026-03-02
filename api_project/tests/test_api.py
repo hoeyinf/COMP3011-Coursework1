@@ -1,8 +1,8 @@
 """
 Unit tests for API methods in fridge_manager.views.
 """
-from fridge_manager.views import *
 import pytest
+from fridge_manager.views import *
 
 
 class TestUsers:

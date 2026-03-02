@@ -1,21 +1,24 @@
+"""
+Contains serializers that allow for easier serialization and deserialization of data into JSON
+for API calls.
+"""
+
 from rest_framework import serializers
-from fridge_manager.models import Recipe, Ingredient, RecipeIngredients, Nutrition, UserIngredients
 from django.contrib.auth.models import User
+from fridge_manager.models import Recipe, Ingredient, RecipeIngredients, Nutrition, UserIngredients
 
 
 class UserSerializer(serializers.ModelSerializer):
-    recipes = serializers.PrimaryKeyRelatedField(
+    saved_recipes = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Recipe.objects.all()
     )
 
     class Meta:
         model = User
-        fields = ["id", "username", "recipes"]
+        fields = ["id", "username", "saved_recipes"]
 
 
 class RecipeSerializer(serializers.ModelSerializer):
-    author = serializers.ReadOnlyField(source="author.username")
-    
     class Meta:
         model = Recipe
         fields = ["id", "name", "author", "time", "description", "category",
