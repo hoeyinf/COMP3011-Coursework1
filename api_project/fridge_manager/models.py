@@ -10,7 +10,8 @@ class Ingredient(models.Model):
 
 class Recipe(models.Model):
     name = models.CharField(max_length=100)
-    author = models.ForeignKey("auth.User", related_name="recipes", on_delete=models.CASCADE)
+    author = models.ForeignKey("auth.User", related_name="recipes",
+                               on_delete=models.CASCADE)
     time = models.DurationField()
     description = models.TextField(max_length=500)
     category = models.CharField(max_length=30)
@@ -26,7 +27,8 @@ class RecipeIngredients(models.Model):
     quantity = models.FloatField(blank=True, default=1)
     
 class Nutrition(models.Model):
-    ingredient_id = models.ForeignKey(Ingredient, null=True, on_delete=models.CASCADE)
+    ingredient_id = models.ForeignKey(Ingredient, null=True,
+                                      on_delete=models.CASCADE)
     recipe_id = models.ForeignKey(Recipe, null=True, on_delete=models.CASCADE)
     kcal = models.FloatField(null=True, blank=True,
                              validators=[MinValueValidator(0)])
@@ -46,7 +48,9 @@ class Nutrition(models.Model):
                              validators=[MinValueValidator(0)])
     
 class UserIngredients(models.Model):
-    user = models.ForeignKey("auth.User", on_delete=models.CASCADE)
+    user = models.ForeignKey("auth.User", related_name="ingredients",
+                             on_delete=models.CASCADE)
     ingredient_id = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
     quantity = models.IntegerField(validators=[MinValueValidator(1)])
     fridge = models.BooleanField(default=True)
+

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from fridge_manager.models import Recipe, Ingredient, RecipeIngredients, Nutrition, Fridge
+from fridge_manager.models import Recipe, Ingredient, RecipeIngredients, Nutrition, UserIngredients
 from django.contrib.auth.models import User
 
 
@@ -21,25 +21,29 @@ class RecipeSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "author", "time", "description", "category",
                   "instructions", "serves", "yields"]
 
+
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = ["id", "name", "unit"]
+
 
 class RecipeIngredientsSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecipeIngredients
         fields = ["recipe_id", "ingredient_id", "quantity"]
 
+
 class NutritionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Nutrition
         fields = ["ingredient_id", "recipe_id", "kcal", "total_fat", "saturated_fat",
                   "carbs", "sugars", "protein", "sodium", "fiber"]
-        
-class FridgeSerializer(serializers.ModelSerializer):
+
+  
+class UserIngredientsSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source="user.username")
     
     class Meta:
-        model = Fridge
-        fields = ["user", "ingredient_id", "quantity", "available"]
+        model = UserIngredients
+        fields = ["user", "ingredient_id", "quantity", "fridge"]
