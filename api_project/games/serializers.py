@@ -5,7 +5,7 @@ for API calls.
 
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from fridge_manager.models import Recipe, Ingredient, RecipeIngredients, Nutrition, UserIngredients
+from games.models import Recipe, Ingredient, RecipeIngredients, Nutrition, UserIngredients
 
 
 class UserSerializer(serializers.ModelSerializer):

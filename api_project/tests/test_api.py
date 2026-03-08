@@ -1,8 +1,8 @@
 """
-Unit tests for API methods in fridge_manager.views.
+Unit tests for API methods in games.views.
 """
 import pytest
-from fridge_manager.views import *
+from games import views
 
 
 class TestUsers:

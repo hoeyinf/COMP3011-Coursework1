@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from fridge_manager import views
+from games import views
 from oauth2_provider import urls as oauth2_urls
 
 
