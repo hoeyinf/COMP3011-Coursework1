@@ -22,7 +22,5 @@ from oauth2_provider import urls as oauth2_urls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('o/', include(oauth2_urls)),
-    path('users/<pk>/', views.UserProfile.as_view()),
     path('auth/', include("rest_framework.urls", namespace="rest_framework")),
 ]

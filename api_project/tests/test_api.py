@@ -5,9 +5,11 @@ import pytest
 from games import views
 
 VALID_USER_ID = 1
-INVALID_USER_ID = 0
 VALID_GAME_ID = 1
+VALID_REVIEW_ID = 1
 INVALID_GAME_ID = 0
+INVALID_USER_ID = 0
+INVALID_REVIEW_ID = 0
 
 class TestUsers:
     """
@@ -62,42 +64,26 @@ class TestUsers:
 class TestReviews:
     """
     Tests API endpoints for reviews:
-    - GET /games/{game_id}/reviews
-    - GET /games/{game_id}/reviews/{user_id}
-    - POST /games/{game_id}/reviews
-    - PUT /games/{game_id}/reviews/{user_id}
-    - DELETE /games/{game_id}/reviews/{user_id}
+    - GET /reviews/{review_id}
+    - POST /reviews
+    - PUT /reviews/{review_id}
+    - DELETE /reviews/{review_id}
     """
-    
-    @pytest.mark.parametrize("game_id", [VALID_GAME_ID, INVALID_GAME_ID])
-    def test_get(self, game_id):
-        """
-        Tests GET /games/{game_id}/reviews for a valid and invalid game_id.
-        
-        Passes when:
-        - Valid game_id returns correct reviews and a HTTP 200 OK.
-        - Invalid game_id returns a HTTP 404 Not Found.
-        """
-        assert False
 
-    @pytest.mark.parametrize("game_id,user_id", [(VALID_GAME_ID, VALID_USER_ID),
-                                                 (VALID_GAME_ID, INVALID_USER_ID),
-                                                 (INVALID_GAME_ID, VALID_USER_ID)])
-    def test_get_id(self, game_id, user_id):
+    @pytest.mark.parametrize("review_id", [VALID_REVIEW_ID, INVALID_REVIEW_ID])
+    def test_get_id(self, review_id):
         """
-        Tests GET /games/{game_id}/reviews/{user_id} for a variety of
-        valid and invalid game_ids and user_ids.
+        Tests GET /reviews/{review_id} for a valid and invalid review_id.
         
         Passes when:
-        - Valid IDs return the correct reviews and a HTTP 200 OK.
-        - Invalid IDs return a HTTP 404 Not Found.
+        - Valid ID returns the correct review and a HTTP 200 OK.
+        - Invalid ID returns a HTTP 404 Not Found.
         """
         assert False
     
     def test_get_own_id(self):
         """
-        Tests GET /games/{game_id}/reviews/{user_id} for a user on their own
-        review.
+        Tests GET /reviews/{review_id} for a user on their own review.
 
         Passes when it also provides a link to edit the review and returns a
         HTTP 200 OK.
@@ -109,77 +95,68 @@ class TestReviews:
                                                        (INVALID_GAME_ID, True)])
     def test_post(self, game_id, authenticated):
        """
-       Tests POST /games/{game_id}/reviews for valid and invalid game_ids on
-       authenticated and unauthenticated users.
+       Tests POST /reviews authenticated and unauthenticated users, on valid and
+       invalid games.
 
        Passes when:
-       - Valid game_id and authenticated user creates a new review and returns a
+       - Valid game and authenticated user creates a new review and returns a
          201 HTTP Created.
        - Unauthenticated user returns a HTTP 401 Unauthorized.
-       - Invalid game_id returns a HTTP 404 Not Found.
+       - Invalid game returns a HTTP 422 Unprocessable Content.
        """
        assert False
 
     def test_post_existing(self):
         """
-        Tests POST /games/{game_id}/reviews when the user has an existing
-        review for that game.
+        Tests POST /reviews when the user has an existing review for that game.
 
         Passes when it returns a HTTP 409 Conflict.
         """
         assert False
 
-    @pytest.mark.parametrize("game_id,authenticated", [(VALID_GAME_ID, True),
-                                                       (VALID_GAME_ID, False),
-                                                       (INVALID_GAME_ID, True)])
-    def test_put(self, game_id, authenticated):
+    @pytest.mark.parametrize("review_id,authenticated",
+                             [(VALID_REVIEW_ID, True), (VALID_REVIEW_ID, False),
+                              (INVALID_REVIEW_ID, True)])
+    def test_put(self, review_id, authenticated):
         """
-        Tests PUT /games/{game_id}/reviews/{user_id} for valid and invalid
-        game_ids on authenticated and unauthenticated users.
+        Tests PUT /reviews/{review_id} for valid and invalid review_ids on an
+        authenticated and unauthenticated user.
 
         Passes when:
-        - Valid game_id and authenticated user updates the correct review and
+        - Valid review_id and authenticated user updates the correct review and
         returns a HTTP 200 OK.
         - Unauthenticated user returns a HTTP 401 Unauthorized.
-        - Invalid game_id returns a HTTP 404 Not Found.
+        - Invalid review_id returns a HTTP 404 Not Found.
         """
         assert False
 
     def test_put_forbidden(self):
         """
-        Tests POST /games/{game_id}/reviews/{user_id} for a user trying to
-        update another user's review.
+        Tests PUT /reviews/{review_id} for a user trying to update another
+        user's review.
 
         Passes when it returns a HTTP 403 Forbidden.
         """
         assert False
 
-    def test_put_nonexisting(self):
+    @pytest.mark.parametrize("review_id, own", [(VALID_REVIEW_ID, True),
+                                                (INVALID_REVIEW_ID, True),
+                                                (VALID_REVIEW_ID, False)])
+    def test_delete(self, review_id, own):
         """
-        Tests POST /games/{game_id}/reviews/{user_id} for a user's nonexistent
-        review.
-
-        Passes when it returns a HTTP 404 Not Found.
-        """
-        assert False
-
-    @pytest.mark.parametrize("existent,own", [(True, True), (False, True),
-                                              (True, False)])
-    def test_delete(self, existent, own):
-        """
-        TESTS DELETE /games/{game_id}/reviews/{user_id} for an existent review,
-        non-existent review, and another user's review.
+        Tests DELETE /reviews/{review_id} for a valid and invalid review_id, and
+        on another user's review.
 
         Passes when:
-        - Existent review is deleted and returns a HTTP 200 OK.
-        - Nonexistent review returns a HTTP 404 Not Found.
+        - Valid review_id is deleted and returns a HTTP 200 OK.
+        - Invalid review_id returns a HTTP 404 Not Found.
         - Another user's review returns a HTTP 403 Forbidden.
         """
         assert False
 
     def test_delete_unauthenticated(self):
         """
-        TESTS DELETE /games/{game_id}/reviews/{user_id} for an unauthenticated
+        Tests DELETE /reviews/{review_id} for an unauthenticated
         user.
         
         Passes when it returns a HTTP 401 Unauthorized.
@@ -189,10 +166,11 @@ class TestReviews:
 
 class TestGamesId:
     """
-    Tests API endpoints for games/{game_id} (excluding game reviews):
+    Tests API endpoints for games/{game_id}:
     - GET /games
     - GET /games/{game_id}
     - GET /games/{game_id}/analytics
+    - GET /games/{game_id}/reviews
     """
 
     def test_get(self):
@@ -222,6 +200,17 @@ class TestGamesId:
         Passes when:
         - Valid game_id returns correct data and a HTTP 200 OK.
         - Invalid game_id returns an HTTP 404 Not Found.
+        """
+        assert False
+
+    @pytest.mark.parametrize("game_id", [VALID_GAME_ID, INVALID_GAME_ID])
+    def test_get(self, game_id):
+        """
+        Tests GET /games/{game_id}/reviews for a valid and invalid game_id.
+        
+        Passes when:
+        - Valid game_id returns correct reviews and a HTTP 200 OK.
+        - Invalid game_id returns a HTTP 404 Not Found.
         """
         assert False
 
@@ -276,7 +265,7 @@ class TestGamesCategories:
 
 def test_method_not_allowed():
     """
-    Tests POST /games.
+    Tests GET /reviews.
 
     Passes when it returns a HTTP 405 Method Not Allowed.
     """
@@ -285,7 +274,7 @@ def test_method_not_allowed():
 
 def test_not_implemented():
     """
-    Tests HEAD /games
+    Tests HEAD /reviews.
 
     Passes when it returns a HTTP 501 Not Implemented.
     """
