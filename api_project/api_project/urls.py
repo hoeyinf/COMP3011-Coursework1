@@ -16,11 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from games import views
+from rest_framework.urlpatterns import format_suffix_patterns
+from games import views_api
 from oauth2_provider import urls as oauth2_urls
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include("rest_framework.urls", namespace="rest_framework")),
+    path('api/users/<int:pk>', views_api.UserProfile.as_view())
 ]
+
+urlpatterns = format_suffix_patterns(urlpatterns)

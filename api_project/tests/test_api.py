@@ -14,7 +14,9 @@ INVALID_REVIEW_ID = 0
 class TestUsers:
     """
     Tests signup and login via Django's provided User model, as well as the
-    GET /users/{user_id} API endpoint.
+    following API endpoints:
+    - GET /users/{user_id}
+    - GET /users/{user_id}/reviews
     """
         
     @pytest.mark.parametrize("password", ["validpassword",
@@ -60,6 +62,16 @@ class TestUsers:
         """
         assert False
 
+    @pytest.mark.parametrize("user_id", [VALID_USER_ID, INVALID_USER_ID])
+    def test_get_reviews(self, user_id):
+        """
+        Tests GET /users/{user_id}/reviews on a valid and invalid user_id
+        
+        Passes when:
+        - Valid user_id returns correct reviews and a HTTP 200 OK.
+        - Invalid user_id returns a HTTP 404 Not Found.
+        """
+        assert False
 
 class TestReviews:
     """

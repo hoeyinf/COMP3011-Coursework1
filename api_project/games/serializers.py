@@ -61,8 +61,7 @@ class ReviewSerializer(s.ModelSerializer):
 
 
 class UserSerializer(s.ModelSerializer):
-    reviews = s.PrimaryKeyRelatedField(queryset=Review.objects.all())
-    # Needs a url so that it shows up in nested serialization
+    # Needs a url so that it shows up in nested serialization (REVIEWS)
     class Meta:
         model = User
-        fields = ["id", "username", "reviews"]
+        fields = ["id", "username"]
