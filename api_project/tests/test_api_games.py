@@ -12,19 +12,19 @@ SERVER = "http://127.0.0.1:8000/"
 class TestGamesId:
     """
     Tests API endpoints:
-    - GET /api/games
-    - GET /api/games/<game_id>
-    - GET /api/games/<game_id>/analytics
-    - GET /api/games/<game_id>/reviews
+    - GET /api/games/
+    - GET /api/games/<game__id>
+    - GET /api/games/<game__id>/analytics
+    - GET /api/games/<game__id>/reviews/
     """
 
     def test_get(self):
         """
-        Tests GET /api/games.
+        Tests GET /api/games/.
 
         Passes when it returns the correct data and a HTTP 200 OK.
         """
-        r = requests.get(f'{SERVER}api/games')
+        r = requests.get(f'{SERVER}api/games/')
         games = Game.objects.all().order_by('-release_date')[:10]
         # Compare the results
         correct = []
@@ -42,7 +42,7 @@ class TestGamesId:
                                                    (INVALID_GAME_ID, 404)])
     def test_get_id_correct_http(self, game_id, response):
         """
-        Tests GET /api/games/<game_id> for valid and invalid game_id for correct
+        Tests GET /api/games/<game__id> for valid and invalid game_id for correct
         HTTP responses.
 
         Passes when:
@@ -55,7 +55,7 @@ class TestGamesId:
 
     def test_get_id_correct_data(self):
         """
-        Tests GET /api/games/<game_id> on a valid game_id.
+        Tests GET /api/games/<game__id> on a valid game_id.
 
         Passes when it returns the correct data.
         """
@@ -63,11 +63,11 @@ class TestGamesId:
         game = Game.objects.get(pk=VALID_GAME_ID)
         reviews = Review.objects.filter(game=VALID_GAME_ID).count()
         assert (r.json()['title'] == game.title and
-                len(r.json()['reviews']) == reviews)
+                'reviews' in r.json())
         
     def test_get_id_authenticated(self):
         """
-        Tests GET /api/games/<game_id> for an authenticated user.
+        Tests GET /api/games/<game__id> for an authenticated user.
 
         Passes when it the response contains a link to post a review of the game.
         """
@@ -78,7 +78,7 @@ class TestGamesId:
                                                    (INVALID_GAME_ID, 404)])
     def test_get_id_analytics_correct_http(self, game_id, response):
         """
-        Tests GET /api/games/<game_id>/analytics for valid and invalid game_id
+        Tests GET /api/games/<game__id>/analytics for valid and invalid game_id
         for correct HTTP responses.
 
         Passes when:
@@ -93,23 +93,23 @@ class TestGamesId:
                                                    (INVALID_GAME_ID, 404)])
     def test_get_reviews_correct_http(self, game_id, response):
         """
-        Tests GET /api/games/<game_id>/reviews for a valid and invalid game_id.
+        Tests GET /api/games/<game__id>/reviews/ for a valid and invalid game_id.
         
         Passes when:
         - Valid game_id returns correct reviews and a HTTP 200 OK.
         - Invalid game_id returns a HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/games/{game_id}/reviews')
+        r = requests.get(f'{SERVER}api/games/{game_id}/reviews/')
         assert r.status_code == response, (f"Expected = {response}. "
                                            f"Response = {r.status_code}.")
 
     def test_get_reviews_correct_data(self):
         """
-        Tests GET /api/games/<game_id>/reviews for a valid game_id.
+        Tests GET /api/games/<game__id>/reviews/ for a valid game_id.
         
         Passes when the correct data is returned.
         """
-        r = requests.get(f'{SERVER}api/games/{VALID_GAME_ID}/reviews')
+        r = requests.get(f'{SERVER}api/games/{VALID_GAME_ID}/reviews/')
         reviews = Review.objects.filter(game=VALID_GAME_ID)
         # Compares each review's data to see if it matches
         correct = []
@@ -126,14 +126,14 @@ class TestGamesId:
 class TestGamesCategories:
     """
     Tests API endpoints for different game categories:
-    - GET /api/games/genres
-    - GET /api/games/genres/<genre_id>
-    - GET /api/games/platforms
-    - GET /api/games/platforms/<platform_id>
-    - GET /api/games/developers
-    - GET /api/games/developers/<developer_id>
-    - GET /api/games/publishers
-    - GET /api/games/publishers/<publisher_id>
+    - GET /api/games/genres/
+    - GET /api/games/genres/<genre__id>
+    - GET /api/games/platforms/
+    - GET /api/games/platforms/<platform__id>
+    - GET /api/games/developers/
+    - GET /api/games/developers/<developer__id>
+    - GET /api/games/publishers/
+    - GET /api/games/publishers/<publisher__id>
     """
 
     @pytest.mark.parametrize("category, model", [("genres", Genre),
@@ -143,27 +143,27 @@ class TestGamesCategories:
                                                  ("idonotexist", "")])
     def test_category(self, category, model):
         """
-        Tests the 4 API endpoints with the structure GET /api/games/<category>.
+        Tests the 4 API endpoints with the structure
+        GET /api/games/<category__name>/
 
         Passes when:
         - They each return the correct data and a HTTP 200 OK.
         - Non-existent category returns a HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/games/{category}')
+        r = requests.get(f'{SERVER}api/games/{category}/')
         
         # Check that every category is listing all its relevant data
         response = 200
         correct = True
         if category == "idonotexist": response = 404
         else:
-            categories = model.objects.all()
+            categories = model.objects.all().order_by('name')
             for i, cat in enumerate(categories):
-                if r.json()[i] != cat.name:
+                if r.json()[i]['name'] != cat.name or 'url' not in r.json()[i]:
                     correct = False
                     break
         
-        assert correct and r.status_code == response, (f"Expected = {response}. "
-                                                       f"Response = {r.status_code}.")
+        assert correct and r.status_code == response
 
     @pytest.mark.parametrize("category, model", [("genres", Genre),
                                                  ("platforms", Platform),
@@ -172,32 +172,33 @@ class TestGamesCategories:
     def test_category_id_valid(self, category, model):
         """
         Tests the 4 API endpoints with the structure
-        GET /api/games/<category>/<category_id>, for all valid category_ids.
+        GET /api/games/<category__name>/<category__id>, for all valid
+        category_ids.
 
         Passes when they each return the correct data and a HTTP 200 OK.
         """
         categories = model.objects.all()
         correct = True
         response = True
-        # Loops through each subcategory and checks that they match
+        # Loops through each subcategory and checks that they match and have a url
         for cat in categories:
             r = requests.get(f'{SERVER}api/games/{category}/{cat.pk}')
             if r.status_code != 200:
                 response = False
                 break
-            if r.json()['name'] != cat.name:
+            if r.json()['name'] != cat.name or 'url' not in r.json():
                 correct = False
                 break
             
-        assert correct and response, (f"Response = {response}. "
-                                      f"Data = {correct}.")
+        assert correct and response
 
     @pytest.mark.parametrize("category", ["genres", "platforms", "developers",
                                           "publishers"])
     def test_category_id_invalid(self, category):
         """
         Tests the 4 API endpoints with the structure
-        GET /api/games/<category>/<category_id>, with invalid category_ids.
+        GET /api/games/<category__name>/<category__id>, with invalid
+        category_ids.
 
         Passes when they each return a HTTP 404 Not Found.
         """
@@ -206,9 +207,10 @@ class TestGamesCategories:
 
 def test_method_not_allowed():
     """
-    Tests PUT /api/games/1.
+    Tests POST /api/games/
 
     Passes when it returns a HTTP 405 Method Not Allowed.
     """
-    r = requests.put(f'{SERVER}api/games/1')
+    # Need to authenticate here
+    r = requests.post(f'{SERVER}api/games/')
     assert r.status_code == 405, f"Expected 405. Response = {r.status_code}."

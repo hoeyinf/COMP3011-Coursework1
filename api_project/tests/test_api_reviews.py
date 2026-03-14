@@ -16,17 +16,17 @@ SERVER = "http://127.0.0.1:8000/"
 class TestReviews:
     """
     Tests API endpoints for reviews:
-    - GET /api/reviews/<review_id>
-    - POST /api/reviews
-    - PUT /api/reviews/<review_id>
-    - DELETE /api/reviews/<review_id>
+    - GET /api/reviews/<review__id>
+    - POST /api/reviews/
+    - PUT /api/reviews/<review__id>
+    - DELETE /api/reviews/<review__id>
     """
 
     @pytest.mark.parametrize("review_id, response", [(VALID_REVIEW_ID, 200),
                                                      (INVALID_REVIEW_ID, 404)])
     def test_get_id_correct_http(self, review_id, response):
         """
-        Tests GET /api/reviews/<review_id> for a valid and invalid review_id
+        Tests GET /api/reviews/<review__id> for a valid and invalid review_id
         for correct HTTP status codes.
         
         Passes when:
@@ -39,7 +39,7 @@ class TestReviews:
 
     def test_get_id_correct_data(self):
         """
-        Tests GET /api/reviews/<review_id> for an existing review.
+        Tests GET /api/reviews/<review__id> for an existing review.
         
         Passes when it returns the correct data for the review.
         """
@@ -55,7 +55,7 @@ class TestReviews:
     
     def test_get_own_id(self):
         """
-        Tests GET /api/reviews/<review_id> for a user on their own review.
+        Tests GET /api/reviews/<review__id> for a user on their own review.
 
         Passes when it also provides a link to edit the review and returns a
         HTTP 200 OK.
@@ -69,7 +69,7 @@ class TestReviews:
                                                    (VALID_GAME_ID, 401)])
     def test_post_correct_http(self, game_id, response):
         """
-        Tests POST /api/reviews authenticated users on valid and
+        Tests POST /api/reviews/ for authenticated users on valid and
         invalid games, on an existing review, and an unauthenticated user.
 
         Passes when:
@@ -81,7 +81,7 @@ class TestReviews:
         new_id = Review.objects.all().count() + 1
         # Does not authenticate when testing for unauthenticared user
         if response == 401:
-           r = requests.post(f'{SERVER}api/reviews')
+           r = requests.post(f'{SERVER}api/reviews/')
         else:
             payload = {'game': game_id, 'date': datetime.date.today(),
                        'score': 75, 'content': 'Example review content!!!'}
@@ -93,12 +93,12 @@ class TestReviews:
         assert r.status_code == response, (f"Expected = {response}. "
                                            f"Response = {r.status_code}.")
 
-    @pytest.mark.parametrize("review_id,authenticated",
+    @pytest.mark.parametrize("review_id, authenticated",
                              [(VALID_REVIEW_ID, True), (VALID_REVIEW_ID, False),
                               (INVALID_REVIEW_ID, True)])
     def test_put(self, review_id, authenticated):
         """
-        Tests PUT /api/reviews/<review_id> for valid and invalid review_ids on an
+        Tests PUT /api/reviews/<review__id> for valid and invalid review_ids on an
         authenticated and unauthenticated user.
 
         Passes when:
@@ -111,7 +111,7 @@ class TestReviews:
 
     def test_put_forbidden(self):
         """
-        Tests PUT /api/reviews/<review_id> for a user trying to update another
+        Tests PUT /api/reviews/<review__id> for a user trying to update another
         user's review.
 
         Passes when it returns a HTTP 403 Forbidden.
@@ -123,7 +123,7 @@ class TestReviews:
                                                 (VALID_REVIEW_ID, False)])
     def test_delete(self, review_id, own):
         """
-        Tests DELETE /api/reviews/<review_id> for a valid and invalid review_id, and
+        Tests DELETE /api/reviews/<review__id> for a valid and invalid review_id, and
         on another user's review.
 
         Passes when:
@@ -135,7 +135,7 @@ class TestReviews:
 
     def test_delete_unauthenticated(self):
         """
-        Tests DELETE /api/reviews/<review_id> for an unauthenticated
+        Tests DELETE /api/reviews/<review__id> for an unauthenticated
         user.
         
         Passes when it returns a HTTP 401 Unauthorized.

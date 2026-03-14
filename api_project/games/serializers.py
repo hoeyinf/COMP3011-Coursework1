@@ -29,25 +29,25 @@ class DynamicFieldsSerializer(s.HyperlinkedModelSerializer):
 class GenreSerializer(DynamicFieldsSerializer):
     class Meta:
         model = Genre
-        fields = ["name"]
+        fields = ["name", "url"]
 
 
 class PlatformSerializer(DynamicFieldsSerializer):
     class Meta:
         model = Platform
-        fields = ["name"]
+        fields = ["name", "url"]
 
 
 class DeveloperSerializer(DynamicFieldsSerializer):
     class Meta:
         model = Developer
-        fields = ["name"]
+        fields = ["name", "url"]
 
 
 class PublisherSerializer(DynamicFieldsSerializer):
     class Meta:
         model = Publisher
-        fields = ["name"]
+        fields = ["name", "url"]
 
 
 class GameSerializer(DynamicFieldsSerializer):
@@ -56,7 +56,7 @@ class GameSerializer(DynamicFieldsSerializer):
     platforms = PlatformSerializer(many=True, read_only=True)
     developers = DeveloperSerializer(many=True, read_only=True)
     publishers = PublisherSerializer(many=True, read_only=True)
-    reviews = s.HyperlinkedRelatedField(many=True, read_only=True, view_name='')
+    reviews = s.HyperlinkedIdentityField(view_name='game-reviews')
     class Meta:
         model = Game
         fields = ["id", "title", "url", "release_date", "rating", "description",

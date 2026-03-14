@@ -16,7 +16,7 @@ class TestUsers:
     Tests authentication via Django's provided User model, as well as the
     following API endpoints:
     - GET /api/users/<user_id>
-    - GET /api/users/<user_id>/reviews
+    - GET /api/users/<user_id>/reviews/
     """
 
     def test_authentication_valid(self):
@@ -67,14 +67,14 @@ class TestUsers:
                                                    (INVALID_USER_ID, 404)])
     def test_get_reviews_correct_http(self, user_id, response):
         """
-        Tests GET /api/users/<user_id>/reviews on a valid and invalid user_id
+        Tests GET /api/users/<user_id>/reviews/ on a valid and invalid user_id
         for correct HTTP responses.
         
         Passes when:
         - Valid user_id returns correct reviews and a HTTP 200 OK.
         - Invalid user_id returns a HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/users/{user_id}/reviews')
+        r = requests.get(f'{SERVER}api/users/{user_id}/reviews/')
         assert r.status_code == response, (f"Expected = {response}. "
                                            f"Response = {r.status_code}.")
 
@@ -82,23 +82,23 @@ class TestUsers:
                                                    (1, 0)])
     def test_get_reviews_size(self, user_id, expected):
         """
-        Tests GET /api/users/<user_id>/reviews on a users with and without
+        Tests GET /api/users/<user_id>/reviews/ on a users with and without
         reviews.
         
         Passes when correct number of reviews is returned for each user.
         """
-        r = requests.get(f'{SERVER}api/users/{user_id}/reviews')
+        r = requests.get(f'{SERVER}api/users/{user_id}/reviews/')
         assert len(r.json()) == expected, (f"Expected = {expected}. "
                                            f"Result = {len(r.json())}")
     
     def test_get_reviews_correct_data(self):
         """
-        Tests GET /api/users/<user_id>/reviews on a valid user with
+        Tests GET /api/users/<user_id>/reviews/ on a valid user with
         multiple reviews.
         
         Passes when it returns correct review data for all reviews.
         """
-        r = requests.get(f'{SERVER}api/users/{VALID_USER_ID}/reviews')
+        r = requests.get(f'{SERVER}api/users/{VALID_USER_ID}/reviews/')
         reviews = Review.objects.filter(user=VALID_USER_ID)
         # Loop through each review and check that it returns correct data
         correct = []
