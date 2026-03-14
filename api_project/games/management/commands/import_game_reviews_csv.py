@@ -26,7 +26,7 @@ class Command(BaseCommand):
                 reviews.append((user, row['title'], publish_date,
                                 int(float(row['score'])), row['quote']))
                 count += 1
-                if count > 125000:
+                if count > 130000:
                     break
 
         # Insert users into the database

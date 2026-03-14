@@ -7,61 +7,74 @@ from rest_framework import serializers as s
 from django.contrib.auth.models import User
 from games.models import Game, Review, Genre, Platform, Developer, Publisher, User
 
-class CategorySerializer(s.ModelSerializer):
-    # Each category should show its own url so that it shows up in the nested serialization
-    class Meta:
-        fields = ["id", "name"]
+class DynamicFieldsSerializer(s.HyperlinkedModelSerializer):
+    """
+    HyperlinkedModelSerializer that uses a fields argument to control which
+    fields to display.
+    """
+
+    def __init__(self, *args, **kwargs):
+        fields = kwargs.pop('fields', None)
+
+        super().__init__(*args, **kwargs)
+
+        # Keeps only fields that were specified
+        if fields is not None:
+            allowed = set(fields)
+            existing = set(self.fields)
+            for field_name in existing - allowed:
+                self.fields.pop(field_name)
 
 
-class GenreSerializer(CategorySerializer):
-    uri = s.HyperlinkedIdentityField(view_name="genre-detail")
+class GenreSerializer(DynamicFieldsSerializer):
     class Meta:
         model = Genre
+        fields = ["name"]
 
 
-class PlatformSerializer(CategorySerializer):
-    uri = s.HyperlinkedIdentityField(view_name="platform-detail")
+class PlatformSerializer(DynamicFieldsSerializer):
     class Meta:
         model = Platform
+        fields = ["name"]
 
 
-class DeveloperSerializer(CategorySerializer):
-    uri = s.HyperlinkedIdentityField(view_name="developer-detail")
+class DeveloperSerializer(DynamicFieldsSerializer):
     class Meta:
         model = Developer
+        fields = ["name"]
 
 
-class PublisherSerializer(CategorySerializer):
-    uri = s.HyperlinkedIdentityField(view_name="publisher-detail")
+class PublisherSerializer(DynamicFieldsSerializer):
     class Meta:
         model = Publisher
+        fields = ["name"]
 
 
-class GameSerializer(s.ModelSerializer):
+class GameSerializer(DynamicFieldsSerializer):
+    """Serializer for a Game."""
     genre = GenreSerializer(read_only=True)
     platforms = PlatformSerializer(many=True, read_only=True)
     developers = DeveloperSerializer(many=True, read_only=True)
     publishers = PublisherSerializer(many=True, read_only=True)
     reviews = s.HyperlinkedRelatedField(many=True, read_only=True, view_name='')
-    # Needs a url so that it shows up in nested serialization
     class Meta:
         model = Game
-        fields = ["id", "title", "release_date", "rating", "description",
+        fields = ["id", "title", "url", "release_date", "rating", "description",
                   "genre", "platforms", "developers", "publishers", "reviews"]
 
 
-class ReviewSerializer(s.ModelSerializer):
-    user = s.SlugRelatedField(queryset=User.objects.all(),
-                              slug_field="username")
-    game = s.SlugRelatedField(queryset=Game.objects.all(), slug_field="title")
-    # Does not need a url. All other serializers should use HyperlinkedRelatedField
-    class Meta:
-        model = Review
-        fields = ["id", "user", "game", "date", "score", "content"]
-
-
-class UserSerializer(s.ModelSerializer):
-    # Needs a url so that it shows up in nested serialization (REVIEWS)
+class UserSerializer(DynamicFieldsSerializer):
+    """Serializer for a User."""
+    reviews = s.HyperlinkedIdentityField(view_name='user-reviews')
     class Meta:
         model = User
-        fields = ["id", "username"]
+        fields = ["id", "username", "url", "reviews"]
+
+
+class ReviewSerializer(DynamicFieldsSerializer):
+    """Serializer for a User's Review of a Game."""
+    user = UserSerializer(fields=['username', 'url'])
+    game = GameSerializer(fields=['title', 'url'])
+    class Meta:
+        model = Review
+        fields = ["id", "url", "user", "game", "date", "score", "content"]
