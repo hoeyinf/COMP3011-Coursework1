@@ -11,11 +11,8 @@ SERVER = "http://127.0.0.1:8000/"
 @pytest.mark.django_db
 class TestGamesId:
     """
-    Tests API endpoints:
-    - GET /api/games/
-    - GET /api/games/<game__id>
-    - GET /api/games/<game__id>/analytics
-    - GET /api/games/<game__id>/reviews/
+    Tests API endpoints GET /api/games/, including the use of query
+    parameters.
     """
 
     def test_get(self):
@@ -25,18 +22,16 @@ class TestGamesId:
         Passes when it returns the correct data and a HTTP 200 OK.
         """
         r = requests.get(f'{SERVER}api/games/')
-        games = Game.objects.all().order_by('-release_date')[:10]
-        # Compare the results
-        correct = []
-        for i in range(10):
-            correct.append(r.json()[i]['title'] == games[i].title and
-                           r.json()[i]['rating'] == games[i].rating and
-                           r.json()[i]['genre'] == games[i].genre and
-                           r.json()[i]['title'] == games[i].title and
-                           r.json()[i]['release_date'] == str(games[i].release_date) and
-                           r.json()[i]['description'] == games[i].description)
+        games = Game.objects.all().order_by('-release_date')
+        # Compare the results for the first 20 games
+        correct = True
+        for i, game in enumerate(games):
+            if r.json()[i]['title'] != game.title:
+                correct = False
+                break
+            if i == 20: break
             
-        assert all(correct) and r.status_code == 200
+        assert correct and r.status_code == 200
 
     @pytest.mark.parametrize("game_id, response", [(VALID_GAME_ID, 200),
                                                    (INVALID_GAME_ID, 404)])
@@ -61,7 +56,6 @@ class TestGamesId:
         """
         r = requests.get(f'{SERVER}api/games/{VALID_GAME_ID}')
         game = Game.objects.get(pk=VALID_GAME_ID)
-        reviews = Review.objects.filter(game=VALID_GAME_ID).count()
         assert (r.json()['title'] == game.title and
                 'reviews' in r.json())
         
@@ -110,14 +104,15 @@ class TestGamesId:
         Passes when the correct data is returned.
         """
         r = requests.get(f'{SERVER}api/games/{VALID_GAME_ID}/reviews/')
-        reviews = Review.objects.filter(game=VALID_GAME_ID)
-        # Compares each review's data to see if it matches
+        reviews = Review.objects.filter(game=VALID_GAME_ID).order_by('-date')
+        # Compares the first 10 reviews to check they match
         correct = []
         for i, review in enumerate(reviews):
-            correct.append(r.json()['user']['username'] == review.user.username and
-                           r.json()['game']['title'] == review.game.title and
-                           r.json()['date'] == str(review.date) and
-                           r.json()['score'] == review.score)
+            correct.append(r.json()[i]['user']['username'] == review.user.username and
+                           r.json()[i]['game']['title'] == review.game.title and
+                           r.json()[i]['date'] == str(review.date) and
+                           r.json()[i]['score'] == review.score)
+            if i == 10: break
             
         assert all(correct)
 
@@ -125,85 +120,32 @@ class TestGamesId:
 @pytest.mark.django_db
 class TestGamesCategories:
     """
-    Tests API endpoints for different game categories:
-    - GET /api/games/genres/
-    - GET /api/games/genres/<genre__id>
-    - GET /api/games/platforms/
-    - GET /api/games/platforms/<platform__id>
-    - GET /api/games/developers/
-    - GET /api/games/developers/<developer__id>
-    - GET /api/games/publishers/
-    - GET /api/games/publishers/<publisher__id>
+    Tests API endpoints GET /api/games/ using query parameters to filter by
+    genre, platform, developer, and publisher.
     """
 
-    @pytest.mark.parametrize("category, model", [("genres", Genre),
-                                                 ("platforms", Platform),
-                                                 ("developers", Developer),
-                                                 ("publishers", Publisher),
-                                                 ("idonotexist", "")])
-    def test_category(self, category, model):
+    @pytest.mark.parametrize("category, value", [("genre", "action"),
+                                                 ("platform", "pc"),
+                                                 ("developer", "ea games"),
+                                                 ("publisher", "nintendo"),
+                                                 ("page", "5"),
+                                                 ("idonotexist", "meeither")])
+    def test_category(self, category, value):
         """
         Tests the 4 API endpoints with the structure
-        GET /api/games/<category__name>/
+        GET /api/games/?category=value. Values must be case-insensitive.
 
         Passes when:
-        - They each return the correct data and a HTTP 200 OK.
+        - They each return a HTTP 200 OK.
         - Non-existent category returns a HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/games/{category}/')
+        r = requests.get(f'{SERVER}api/games/?{category}={value}')
         
         # Check that every category is listing all its relevant data
         response = 200
-        correct = True
         if category == "idonotexist": response = 404
-        else:
-            categories = model.objects.all().order_by('name')
-            for i, cat in enumerate(categories):
-                if r.json()[i]['name'] != cat.name or 'url' not in r.json()[i]:
-                    correct = False
-                    break
         
-        assert correct and r.status_code == response
-
-    @pytest.mark.parametrize("category, model", [("genres", Genre),
-                                                 ("platforms", Platform),
-                                                 ("developers", Developer),
-                                                 ("publishers", Publisher)])
-    def test_category_id_valid(self, category, model):
-        """
-        Tests the 4 API endpoints with the structure
-        GET /api/games/<category__name>/<category__id>, for all valid
-        category_ids.
-
-        Passes when they each return the correct data and a HTTP 200 OK.
-        """
-        categories = model.objects.all()
-        correct = True
-        response = True
-        # Loops through each subcategory and checks that they match and have a url
-        for cat in categories:
-            r = requests.get(f'{SERVER}api/games/{category}/{cat.pk}')
-            if r.status_code != 200:
-                response = False
-                break
-            if r.json()['name'] != cat.name or 'url' not in r.json():
-                correct = False
-                break
-            
-        assert correct and response
-
-    @pytest.mark.parametrize("category", ["genres", "platforms", "developers",
-                                          "publishers"])
-    def test_category_id_invalid(self, category):
-        """
-        Tests the 4 API endpoints with the structure
-        GET /api/games/<category__name>/<category__id>, with invalid
-        category_ids.
-
-        Passes when they each return a HTTP 404 Not Found.
-        """
-        r = requests.get(f'{SERVER}api/games/{category}/-1')
-        assert r.status_code == 404, f"Expected 404. Response = {r.status_code}."
+        assert r.status_code == response
 
 def test_method_not_allowed():
     """

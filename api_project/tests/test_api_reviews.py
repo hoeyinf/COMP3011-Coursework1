@@ -127,7 +127,7 @@ class TestReviews:
         on another user's review.
 
         Passes when:
-        - Valid review_id is deleted and returns a HTTP 200 OK.
+        - Valid review_id is deleted and returns a HTTP 204 No Content.
         - Invalid review_id returns a HTTP 404 Not Found.
         - Another user's review returns a HTTP 403 Forbidden.
         """

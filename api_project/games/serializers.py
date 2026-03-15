@@ -5,7 +5,7 @@ for API calls.
 
 from rest_framework import serializers as s
 from django.contrib.auth.models import User
-from games.models import Game, Review, Genre, Platform, Developer, Publisher, User
+from games.models import Game, Review, User
 
 class DynamicFieldsSerializer(s.HyperlinkedModelSerializer):
     """
@@ -26,45 +26,30 @@ class DynamicFieldsSerializer(s.HyperlinkedModelSerializer):
                 self.fields.pop(field_name)
 
 
-class GenreSerializer(DynamicFieldsSerializer):
-    class Meta:
-        model = Genre
-        fields = ["name", "url"]
-
-
-class PlatformSerializer(DynamicFieldsSerializer):
-    class Meta:
-        model = Platform
-        fields = ["name", "url"]
-
-
-class DeveloperSerializer(DynamicFieldsSerializer):
-    class Meta:
-        model = Developer
-        fields = ["name", "url"]
-
-
-class PublisherSerializer(DynamicFieldsSerializer):
-    class Meta:
-        model = Publisher
-        fields = ["name", "url"]
-
-
 class GameSerializer(DynamicFieldsSerializer):
-    """Serializer for a Game."""
-    genre = GenreSerializer(read_only=True)
-    platforms = PlatformSerializer(many=True, read_only=True)
-    developers = DeveloperSerializer(many=True, read_only=True)
-    publishers = PublisherSerializer(many=True, read_only=True)
+    """Serializer for a game."""
+    genre = s.CharField()
+    platforms = s.SlugRelatedField(many=True, read_only=True, slug_field='name')
+    developers = s.SlugRelatedField(many=True, read_only=True, slug_field='name')
+    publishers = s.SlugRelatedField(many=True, read_only=True, slug_field='name')
     reviews = s.HyperlinkedIdentityField(view_name='game-reviews')
+    reviews_n = s.IntegerField()
+    
     class Meta:
         model = Game
         fields = ["id", "title", "url", "release_date", "rating", "description",
-                  "genre", "platforms", "developers", "publishers", "reviews"]
+                  "genre", "platforms", "developers", "publishers", "reviews",
+                  "reviews_n"]
+    """
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['reviews_n'] = instance.reviews.count()
+        return representation
+    """
 
 
 class UserSerializer(DynamicFieldsSerializer):
-    """Serializer for a User."""
+    """Serializer for a user."""
     reviews = s.HyperlinkedIdentityField(view_name='user-reviews')
     class Meta:
         model = User
@@ -72,7 +57,7 @@ class UserSerializer(DynamicFieldsSerializer):
 
 
 class ReviewSerializer(DynamicFieldsSerializer):
-    """Serializer for a User's Review of a Game."""
+    """Serializer for a review."""
     user = UserSerializer(fields=['username', 'url'])
     game = GameSerializer(fields=['title', 'url'])
     class Meta:

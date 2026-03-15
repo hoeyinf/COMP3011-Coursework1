@@ -3,10 +3,12 @@ Defines the views for the different API endpoints. Simply displays the json
 responses.
 """
 from django.contrib.auth.models import User
+from django.db.models import Count
 from django.http import Http404
+from rest_framework import generics
 from rest_framework.decorators import api_view
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework import status
 from .serializers import *
 
@@ -33,118 +35,85 @@ def get_reviews_id(request, pk):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
 
+class GamesList(generics.ListAPIView):
+    queryset = Game.objects.all().order_by('-release_date')
+    pagination_class = PageNumberPagination
+    
+    def validate_params(self, params):
+        """Validates provided query paramaters and raises 404 if unknown."""
+        known = ['genre', 'platform', 'developer', 'publisher', 'page']
+        for param in params:
+            if param not in known:
+                raise Http404
+    
+    def get_queryset(self):
+        """Filters queryset based on query parameters."""
+        self.validate_params(self.request.query_params)
+        genre = self.request.query_params.get('genre')
+        platform = self.request.query_params.get('platform')
+        developer = self.request.query_params.get('developer')
+        publisher = self.request.query_params.get('publisher')
+        if genre is not None:
+            self.queryset = self.queryset.filter(genre__name__iexact=genre)
+        if platform is not None:
+            self.queryset = self.queryset.filter(platforms__name__iexact=platform)
+        if developer is not None:
+            self.queryset = self.queryset.filter(developers__name__iexact=developer)
+        if publisher is not None:
+            self.queryset = self.queryset.filter(publishers__name__iexact=publisher)
+        return super().get_queryset()
+    
+    def get(self, request):
+        """View for GET /api/games/"""
+        games = self.get_queryset()
+        pages = self.paginate_queryset(games)
+        serializer = GameSerializer(pages, context={'request': request},
+                                    many=True, fields=['id', 'title', 'url',
+                                                       'release_date'])
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+
+
 @api_view()
-def get_game_id(request, pk):
+def get_games_id(request, pk):
     """View for GET /api/games/<game__id>"""
     try:
-        game = Game.objects.get(pk=pk)
+        game = Game.objects.annotate(reviews_n=Count("review")).get(pk=pk)
         serializer = GameSerializer(game, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Game.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
 
-@api_view()
-def get_user_reviews(request, pk):
-    """View for GET /api/users/<user__id>/reviews/"""
-    try:
-        user = User.objects.get(pk=pk)
-        reviews = Review.objects.filter(user=user)
-        serializer = ReviewSerializer(reviews, context={'request': request},
-                                      many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    except User.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+class UserReviews(generics.ListAPIView):
+    queryset = Review.objects.all()
+    pagination_class = PageNumberPagination
+    
+    def get(self, request, pk):
+        """View for GET /api/users/<user__id>/reviews/"""
+        try:
+            user = User.objects.get(pk=pk)
+            reviews = self.queryset.filter(user=user).order_by('-date')
+            pages = self.paginate_queryset(reviews)
+            serializer = ReviewSerializer(pages, context={'request': request},
+                                          many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
-@api_view()
-def get_game_reviews(request, pk):
-    """View for GET /api/games/<game__id>/reviews/"""
-    try:
-        game = Game.objects.get(pk=pk)
-        reviews = Review.objects.filter(game=game).order_by('-date')[:10]
-        serializer = ReviewSerializer(reviews, context={'request': request},
-                                      many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    except Game.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view()
-def get_genres(request):
-    """View for GET /api/games/genres/"""
-    genres = Genre.objects.all().order_by('name')
-    serializer = GenreSerializer(genres, context={'request': request},
-                                 many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-@api_view()
-def get_genres_id(request, pk):
-    """View for GET /api/games/genres/<genre__id>"""
-    try:
-        genre = Genre.objects.get(pk=pk)
-        serializer = GenreSerializer(genre, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    except Genre.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view()
-def get_platforms(request):
-    """View for GET /api/games/platforms/"""
-    platforms = Platform.objects.all().order_by('name')
-    serializer = PlatformSerializer(platforms, context={'request': request},
-                                    many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-@api_view()
-def get_platforms_id(request, pk):
-    """View for GET /api/games/platforms/<platform__id>"""
-    try:
-        platform = Platform.objects.get(pk=pk)
-        serializer = PlatformSerializer(platform, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    except Platform.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view()
-def get_developers(request):
-    """View for GET /api/games/developers/"""
-    developers = Developer.objects.all().order_by('name')
-    serializer = DeveloperSerializer(developers, context={'request': request},
-                                     many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-@api_view()
-def get_developers_id(request, pk):
-    """View for GET /api/games/developers/<developer__id>"""
-    try:
-        developer = Developer.objects.get(pk=pk)
-        serializer = DeveloperSerializer(developer, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    except Developer.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view()
-def get_publishers(request):
-    """View for GET /api/games/publishers/"""
-    publishers = Publisher.objects.all().order_by('name')
-    serializer = PublisherSerializer(publishers, context={'request': request},
-                                     many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-@api_view()
-def get_publishers_id(request, pk):
-    """View for GET /api/games/publishers/<publisher__id>"""
-    try:
-        publisher = Publisher.objects.get(pk=pk)
-        serializer = PublisherSerializer(publisher, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    except Publisher.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+class GameReviews(generics.ListAPIView):
+    queryset = Review.objects.all()
+    pagination_class = PageNumberPagination
+    
+    def get(self, request, pk):
+        """View for GET /api/games/<game__id>/reviews/"""
+        try:
+            game = Game.objects.get(pk=pk)
+            reviews = self.queryset.filter(game=game).order_by('-date')
+            pages = self.paginate_queryset(reviews)
+            serializer = ReviewSerializer(pages, context={'request': request},
+                                          many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Game.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
