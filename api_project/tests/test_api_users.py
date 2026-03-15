@@ -1,6 +1,7 @@
 """Unit tests for API methods regarding users."""
 import pytest
 import requests
+from django.contrib.auth import authenticate
 from games.models import User, Review
 
 VALID_USER_ID = 2
@@ -17,25 +18,29 @@ class TestUsers:
     following API endpoints:
     - GET /api/users/<user_id>
     - GET /api/users/<user_id>/reviews/
+    - POST /api/users/
     """
+    @pytest.mark.parametrize("username, password, valid", [
+        ("valid_username", "thisisavalidpassword", True),
+        ("idonotexist", "thisisavalidpassword", False),
+        ("valid_username", "thisisnotmypassword", False)])
+    def test_authentication(self, username, password, valid):
+        """
+        Tests logging in.
+        
+        Passes when it returns a valid login works and an invalid one does not.
+        """
+        # Creates user when checking for a valid password
+        if username == "valid_username":
+            user = User.objects.create_user(username, "", "thisisavalidpassword")
+            user.save()
+        # Logs in with credentials
+        login = authenticate(username=username, password=password)
+        
+        if username == "valid_username": user.delete()
 
-    def test_authentication_valid(self):
-        """
-        Tests logging in with a valid username and password.
-        
-        Passes when it returns a HTTP 200 OK.
-        """
-        # Login with valid credentials using fixture, check that it was successful (auth.get_user)
-        assert False
-    
-    def test_authentication_invalid(self):
-        """
-        Tests logging in with an invalid username or password.
-        
-        Passes when it returns a HTTP 401 Unauthorized.
-        """
-        # Login with valid credentials using fixture, check that it was successful (auth.get_user)
-        assert False
+        if valid: assert login is not None
+        if not valid: assert login is None
     
     @pytest.mark.parametrize("user_id, response", [(VALID_USER_ID, 200),
                                                    (INVALID_USER_ID, 404)])
@@ -111,3 +116,32 @@ class TestUsers:
                             'url' in r.json()[i]['game'] and
                             'url' in r.json()[i]['user']))
         assert all(correct)
+
+    @pytest.mark.parametrize("username, password, expected", [
+        ("valid_username", "thisisavalidpassword", 201),
+        ("admin", "thisisavalidpassword", 409),
+        ("valid_username", "password123", 400),
+        ("valid_username", "102934857", 400),
+        ("", "thisisavalidpassword", 400)])
+    def test_post(self, username, password, expected):
+        """
+        Tests POST /api/users/ on a valid and some invalid usernames and
+        passwords.
+        """
+        credentials = {'username': username, 'password': password}
+        user_n = User.objects.all().count()
+        r = requests.post(f'{SERVER}api/users/', data=credentials)
+        new_user_n = User.objects.all().count()
+        
+        # Checks that user is actually created for valid credentials
+        if expected == 201:
+            new_user = User.objects.latest('id')
+            new_username = new_user.username
+            # Deletes created user
+            new_user.delete()
+            assert (user_n + 1 == new_user_n and
+                    username == new_username  and
+                    r.status_code == expected)
+        else:
+            assert (user_n == new_user_n and
+                    r.status_code == expected)

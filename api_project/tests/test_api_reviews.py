@@ -69,8 +69,7 @@ class TestReviews:
                                                    (VALID_GAME_ID, 401)])
     def test_post_correct_http(self, game_id, response):
         """
-        Tests POST /api/reviews/ for authenticated users on valid and
-        invalid games, on an existing review, and an unauthenticated user.
+        Tests POST /api/reviews/
 
         Passes when:
         - Valid game returns a 201 HTTP Created.
@@ -79,65 +78,92 @@ class TestReviews:
         - Unauthenticated user returns a HTTP 401 Unauthorized.
         """
         new_id = Review.objects.all().count() + 1
-        # Does not authenticate when testing for unauthenticared user
+        # Does not authenticate when testing for unauthenticated user
         if response == 401:
            r = requests.post(f'{SERVER}api/reviews/')
         else:
             payload = {'game': game_id, 'date': datetime.date.today(),
                        'score': 75, 'content': 'Example review content!!!'}
-            r = requests.post(f'{SERVER}api/reviews', params=payload)
+            r = requests.post(f'{SERVER}api/reviews', data=payload)
         # Deletes any review created by the above POST request
         if Review.objects.all().count() == new_id:
            Review.objects.get(pk=new_id).delete()
 
         assert r.status_code == response, (f"Expected = {response}. "
                                            f"Response = {r.status_code}.")
-
-    @pytest.mark.parametrize("review_id, authenticated",
-                             [(VALID_REVIEW_ID, True), (VALID_REVIEW_ID, False),
-                              (INVALID_REVIEW_ID, True)])
-    def test_put(self, review_id, authenticated):
+        
+    def test_post_correct_data(self):
         """
-        Tests PUT /api/reviews/<review__id> for valid and invalid review_ids on an
-        authenticated and unauthenticated user.
+        Tests POST /api/reviews/ for an authenticated user on a valid game.
+
+        Passes when the review is successfully and correctly created.
+        """
+        # Get current user:
+        # Use current user to get their review_n = Review.objects.filter().count()
+        payload = {'game': 1, 'date': datetime.date.today(), 'score': 75,
+                   'content': 'Example review content!!!'}
+        r = requests.post(f'{SERVER}api/reviews/', data=payload)
+
+        # new_review = Review.objects.filter().latest('date')
+        # new_review_n = Review.objects.filter().count()
+        # correct = new_review.game.id == 1 and new_review.score == 75 and new_review.date == datetime.date.today() and new_review.content == 'Example review content!!!'
+        # new_review.delete()
+        # assert (review_n + 1 == new_review_n and correct)
+        assert False
+
+    @pytest.mark.parametrize("review_id, expected",
+                             [(VALID_REVIEW_ID, 200), (VALID_REVIEW_ID, 401),
+                              (INVALID_REVIEW_ID, 404), (VALID_REVIEW_ID, 403)])
+    def test_put(self, review_id, expected):
+        """
+        Tests PUT /api/reviews/<review__id>.
 
         Passes when:
         - Valid review_id and authenticated user updates the correct review and
         returns a HTTP 200 OK.
         - Unauthenticated user returns a HTTP 401 Unauthorized.
         - Invalid review_id returns a HTTP 404 Not Found.
+        - Valid review_id from an authenticated user that is not its author
+        returns a HTTP 403 Forbidden
         """
+        # review = Review.objects.get(id)
+        # old_score = review.score
+        # old_content = review.content
+        # payload_score = old_score - 1 if old_score > 0 else: payload_score = 100
+        # payload_content = f'{old_content}!'
+        # if expected == 200 or expected == 403:
+        #     if expected == 200: login
+        #     else: bad login
+        # payload = {'score': payload_score, 'content': payload_content}
+        # r = requests.put(f'{SERVER}api/reviews/{review_id}', data=payload)
+        # new_review = Review.objects.get(id)
+        # if expected == 200:
+        #     assert (new_review.score == old_score - 1 or new_review.score == 100) and new_review.content = f'{old_content}!' and  r.status_code == expected
+        # else: assert new_review.score == old_score and new_review.content == old_content and r.status_code == expected
         assert False
 
-    def test_put_forbidden(self):
-        """
-        Tests PUT /api/reviews/<review__id> for a user trying to update another
-        user's review.
 
-        Passes when it returns a HTTP 403 Forbidden.
+    @pytest.mark.parametrize("expected", [204, 404, 401, 403])
+    def test_delete(self, expected):
         """
-        assert False
-
-    @pytest.mark.parametrize("review_id, own", [(VALID_REVIEW_ID, True),
-                                                (INVALID_REVIEW_ID, True),
-                                                (VALID_REVIEW_ID, False)])
-    def test_delete(self, review_id, own):
-        """
-        Tests DELETE /api/reviews/<review__id> for a valid and invalid review_id, and
-        on another user's review.
+        Tests DELETE /api/reviews/<review__id>.
 
         Passes when:
         - Valid review_id is deleted and returns a HTTP 204 No Content.
         - Invalid review_id returns a HTTP 404 Not Found.
+        - Unauthenticated user returns a HTTP 401 Unauthorized
         - Another user's review returns a HTTP 403 Forbidden.
         """
-        assert False
-
-    def test_delete_unauthenticated(self):
-        """
-        Tests DELETE /api/reviews/<review__id> for an unauthenticated
-        user.
-        
-        Passes when it returns a HTTP 401 Unauthorized.
-        """
+        # review_id = Review.objects.latest('id').id + 1
+        # review = Review(game=VALID_REVIEW_ID, score=50, content="Example content")
+        # review.save()
+        # if expected == 200 or expected == 403:
+        #     if expected == 200: login
+        #     else: bad login
+        # r = requests.delete(f'{SERVER}api/reviews/{review_id}')
+        # try:
+        #     new_review = Review.objects.get(review_id)
+        #     assert new_review.score == 50 and new_review.content = "Example content" and r.status_code == expected
+        # except Review.DoesNotExist:
+        #     assert r.status_code == expected
         assert False

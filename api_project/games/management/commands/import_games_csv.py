@@ -43,6 +43,7 @@ class Command(BaseCommand):
         games = []
         with open("planning/games.csv", encoding="utf-8") as f:
             reader = csv.DictReader(f)
+            count = 0
             for row in reader:
                 if row['genres'] not in genres: genres.append(row['genres'])
                 unique_csv_values(row['platforms'], platforms)
@@ -56,6 +57,8 @@ class Command(BaseCommand):
                 games.append((row['title'], release_date, row['rating'],
                             row['genres'], row['description'], row['platforms'],
                             row['developer'], row['publisher']))
+                count += 1
+                if count == 10000: break
         
         # Insert all unique values into the database tables.
         import_category(Genre, genres)
