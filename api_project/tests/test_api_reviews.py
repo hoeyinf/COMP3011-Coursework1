@@ -26,8 +26,7 @@ class TestReviews:
                                                      (INVALID_REVIEW_ID, 404)])
     def test_get_id_correct_http(self, review_id, response):
         """
-        Tests GET /api/reviews/<review__id> for a valid and invalid review_id
-        for correct HTTP status codes.
+        Tests GET /api/reviews/<review__id>
         
         Passes when:
         - Valid ID returns the correct review and a HTTP 200 OK.
@@ -57,11 +56,28 @@ class TestReviews:
         """
         Tests GET /api/reviews/<review__id> for a user on their own review.
 
-        Passes when it also provides a link to edit the review and returns a
+        Passes when it also provides a links to edit or delete the review, and
+        returns a 200 HTTP OK.
+        """
+        # login
+        r = requests.get(f'{SERVER}api/reviews/{VALID_REVIEW_ID}')
+        assert ('edit-review' in r.json() and
+                'delete-review' in r.json() and
+                r.status_code == 200)
+    
+    def test_get_other_id(self):
+        """
+        Tests GET /api/reviews/<review__id> for a user on review they did not
+        create.
+
+        Passes when it does not provide a link to edit the review and returns a
         HTTP 200 OK.
         """
+        # login
         r = requests.get(f'{SERVER}api/reviews/{VALID_REVIEW_ID}')
-        assert False
+        assert ('edit-review' not in r.json() and
+                'delete-review' not in r.json() and
+                r.status_code == 200)
 
     @pytest.mark.parametrize("game_id, response", [(VALID_GAME_ID, 201),
                                                    (INVALID_GAME_ID, 422),

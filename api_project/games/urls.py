@@ -4,6 +4,7 @@ from games.views_api import *
 from oauth2_provider import urls as oauth2_urls
 
 urlpatterns = [
+    path('users/', post_users, name='user-create'),
     path('users/<int:pk>', get_users_id, name="user-detail"),
     path('games/<int:pk>', get_games_id, name="game-detail"),
     path('reviews/<int:pk>', get_reviews_id, name="review-detail"),

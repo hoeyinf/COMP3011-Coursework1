@@ -2,7 +2,9 @@
 Defines the views for the different API endpoints. Simply displays the json
 responses.
 """
+from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.db.models import Count
 from django.http import Http404
 from rest_framework import generics
@@ -11,6 +13,45 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import *
+
+
+@api_view(['POST'])
+def post_users(request):
+    """View for creating new user."""
+    if request.method == "GET":
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    
+    elif request.method == "POST":
+        if 'username' not in request.data or 'password' not in request.data:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        username = request.data['username']
+        password = request.data['password']
+        
+        # Checks username length
+        if len(username) < 3:
+            return Response({"message": f"Username '{username}' is too short."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        
+        # Checks username uniqueness
+        try:
+            user = User.objects.get(username=username)
+            return Response({"message": f"Username '{username} already taken'"},
+                            status=status.HTTP_409_CONFLICT)
+        except User.DoesNotExist:
+            pass
+        
+        # Validates password using default validators defined in settings.py
+        try:
+            validate_password(password=password)
+        except ValidationError:
+            return Response({"message": "Invalid password. Must be at least"\
+                                        "12 characters long with letters."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Creates user
+        user = User.objects.create_user(username=username, password=password)
+        serializer = UserSerializer(user, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 @api_view()

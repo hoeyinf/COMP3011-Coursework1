@@ -116,14 +116,6 @@ class TestGamesId:
             
         assert all(correct)
 
-
-@pytest.mark.django_db
-class TestGamesCategories:
-    """
-    Tests API endpoints GET /api/games/ using query parameters to filter by
-    genre, platform, developer, and publisher.
-    """
-
     @pytest.mark.parametrize("category, value", [("genre", "action"),
                                                  ("platform", "pc"),
                                                  ("developer", "ea games"),
@@ -139,7 +131,8 @@ class TestGamesCategories:
         - They each return a HTTP 200 OK.
         - Non-existent category returns a HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/games/?{category}={value}')
+        params = {f"{category}": value}
+        r = requests.get(f'{SERVER}api/games/', params=params)
         
         # Check that every category is listing all its relevant data
         response = 200

@@ -33,7 +33,6 @@ class TestUsers:
         # Creates user when checking for a valid password
         if username == "valid_username":
             user = User.objects.create_user(username, "", "thisisavalidpassword")
-            user.save()
         # Logs in with credentials
         login = authenticate(username=username, password=password)
         
@@ -118,30 +117,60 @@ class TestUsers:
         assert all(correct)
 
     @pytest.mark.parametrize("username, password, expected", [
-        ("valid_username", "thisisavalidpassword", 201),
         ("admin", "thisisavalidpassword", 409),
+        ("valid_username", "shortpass", 400),
         ("valid_username", "password123", 400),
         ("valid_username", "102934857", 400),
         ("", "thisisavalidpassword", 400)])
-    def test_post(self, username, password, expected):
+    def test_post_invalid(self, username, password, expected):
         """
-        Tests POST /api/users/ on a valid and some invalid usernames and
-        passwords.
-        """
-        credentials = {'username': username, 'password': password}
-        user_n = User.objects.all().count()
-        r = requests.post(f'{SERVER}api/users/', data=credentials)
-        new_user_n = User.objects.all().count()
+        Tests POST /api/users/ on a invalid usernames and passwords.
         
-        # Checks that user is actually created for valid credentials
-        if expected == 201:
-            new_user = User.objects.latest('id')
-            new_username = new_user.username
-            # Deletes created user
-            new_user.delete()
-            assert (user_n + 1 == new_user_n and
-                    username == new_username  and
-                    r.status_code == expected)
-        else:
-            assert (user_n == new_user_n and
-                    r.status_code == expected)
+        Passes when the correct HTTP status codes are returned.
+        """
+        if username != "admin":
+            try:
+                user = User.objects.get(username=username)
+                user.delete()
+            except User.DoesNotExist:
+                pass
+            
+        credentials = {"username": username, "password": password}
+        r = requests.post(f'{SERVER}api/users/', data=credentials)
+
+        assert r.status_code == expected
+
+    def test_post_no_credentials(self):
+        """
+        Tests POST /api/users/ with no provided username or password.
+        
+        Passes when the correct HTTP status codes are returned.
+        """
+        
+        r1 = requests.post(f'{SERVER}api/users/',
+                           data={"password": "thisisavalidpassword"})
+        r2 = requests.post(f'{SERVER}api/users/',
+                           data={"username": "valid_username"})
+        r3 = requests.post(f'{SERVER}api/users/')
+        
+        assert (r1.status_code == 400 and r2.status_code == 400 and
+                r3.status_code == 400)
+        
+    def test_post_valid(self):
+        """
+        Tests POST /api/users/ on valid credentials
+        
+        Passes when it returns a HTTP 201 Created and the correct username.
+        """
+        
+        r = requests.post(f'{SERVER}api/users/',
+                          data={"username": "valid_username",
+                                "password": "thisisavalidpassword"})
+        
+        try:
+            user = User.objects.get(username="valid_username")
+            user.delete()
+        except User.DoesNotExist:
+            pass
+        
+        assert r.status_code == 201 and r.json()['username'] == "valid_username"

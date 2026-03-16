@@ -7,6 +7,7 @@ from rest_framework import serializers as s
 from django.contrib.auth.models import User
 from games.models import Game, Review, User
 
+
 class DynamicFieldsSerializer(s.HyperlinkedModelSerializer):
     """
     HyperlinkedModelSerializer that uses a fields argument to control which
