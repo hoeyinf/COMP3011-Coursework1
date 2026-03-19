@@ -44,11 +44,21 @@ class GameSerializer(DynamicFieldsSerializer):
 
 class UserSerializer(DynamicFieldsSerializer):
     """Serializer for a user."""
+
     reviews = s.HyperlinkedIdentityField(view_name='user-reviews')
+    reviews_n = s.IntegerField()
+    average_review_score = s.IntegerField()
+    reviews_hist = s.SerializerMethodField(method_name="get_reviews_hist")
 
     class Meta:
         model = User
-        fields = ["id", "username", "url", "reviews"]
+        fields = ["id", "username", "url", "reviews", "reviews_n",
+                  "average_review_score", "reviews_hist"]
+
+    def get_reviews_hist(self, obj):
+        return self.context.get("reviews_hist")
+        
+
 
 
 class ReviewSerializer(DynamicFieldsSerializer):

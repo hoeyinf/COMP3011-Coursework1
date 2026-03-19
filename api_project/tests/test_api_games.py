@@ -28,23 +28,31 @@ class TestGamesId:
         assert len(r.json()) == 25 and r.status_code == 200
 
     @pytest.mark.parametrize("game_id, response", [("existing_game", 200),
-                                                   (INVALID_ID, 404)])
+                                                   (INVALID_ID, 404),
+                                                   ("", 200)])
     def test_get_id(self, game_id, response):
         """
-        Tests GET /api/games/<game__id> for valid and invalid game_id.
+        Tests GET /api/games/<game__id>
 
         Passes when:
         - Valid game_id returns correct data and a HTTP 200 OK.
-        - Invalid game_id returns an HTTP 404 Not Found.
+        - Invalid game_id returns a HTTP 404 Not Found.
+        - No game_id returns the same response as GET /api/games/ and a HTTP 200
+        OK
         """
         if game_id == "existing_game": game_id = self.existing_game["id"]
 
         r = requests.get(f"{self.server}api/games/{game_id}")
 
-        # Checks that game data matches fixture for successful GET
-        if response == 200:
+        # Checks that game data matches fixture for relevant test
+        if game_id == self.existing_game["id"]:
             assert all(r.json()[key] == self.existing_game[key]
                        for key in self.existing_game)
+        # Checks that missing game_id matches the correct API endpoint
+        # Yes this is kind of pointless. It's the exact same request.
+        elif game_id == "":
+            games = requests.get(f"{self.server}api/games/")
+            assert r.json() == games.json()
 
         assert r.status_code == response
 
@@ -96,7 +104,8 @@ class TestGamesId:
                                                  ("page", "5"),
                                                  ("name", "disco"),
                                                  ("idonotexist", "meeither"),
-                                                 (["genre", "platform"], ["action", "pc"])])
+                                                 (["genre", "platform"],
+                                                  ["action", "pc"])])
     def test_category(self, category, value):
         """
         Tests GET /api/games/?category=value. Values must be case-insensitive.

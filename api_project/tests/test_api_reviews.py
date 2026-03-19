@@ -23,14 +23,16 @@ class TestReviews:
         self.existing_review = existing_review
 
     @pytest.mark.parametrize("review_id, response", [("existing_review", 200),
-                                                     (INVALID_ID, 404)])
+                                                     (INVALID_ID, 404),
+                                                     ("", 404)])
     def test_get_id(self, review_id, response):
         """
         Tests GET /api/reviews/<review__id>
 
         Passes when:
-        - Valid ID returns the correct review and a HTTP 200 OK.
-        - Invalid ID returns a HTTP 404 Not Found.
+        - Valid review_id returns the correct review and a HTTP 200 OK.
+        - Invalid review_id returns a HTTP 404 Not Found.
+        - No review_id returns a HTTP 404 Not Found.
         """
         if review_id == "existing_review": review_id = self.existing_review["id"]
 

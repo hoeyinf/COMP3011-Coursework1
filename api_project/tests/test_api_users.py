@@ -45,14 +45,16 @@ class TestUsers:
         assert r.status_code == response
     
     @pytest.mark.parametrize("user_id, response", [("existing_user", 200),
-                                                   (INVALID_ID, 404)])
+                                                   (INVALID_ID, 404),
+                                                   ("", 404)])
     def test_get(self, user_id, response):
         """
-        Tests GET /api/users/<user_id> on a valid and invalid user_id.
+        Tests GET /api/users/<user_id>
         
         Passes when:
         - Valid user_id returns the correct data and a HTTP 200 OK.
         - Invalid user_id returns a HTTP 404 Not Found.
+        - No user_id returns a HTTP 404 Not Found.
         """
         if user_id == "existing_user": user_id = self.existing_user["id"]
 
