@@ -112,7 +112,7 @@ class TestGamesId:
 
         Passes when:
         - They each return a HTTP 200 OK.
-        - Non-existent category returns a HTTP 404 Not Found.
+        - Non-existent category returns a HTTP 400 Bad Request.
         """
         # Sets params based on test conditions
         params = {}
@@ -125,7 +125,7 @@ class TestGamesId:
         
         # Check that every category is listing all its relevant data
         response = 200
-        if category == "idonotexist": response = 404
+        if category == "idonotexist": response = 400
         
         assert r.status_code == response
 
