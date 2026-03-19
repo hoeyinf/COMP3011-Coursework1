@@ -1,76 +1,56 @@
-"""Unit tests for API methods regarding games."""
+"""Unit tests for API methods regarding games: /api/games/"""
 import pytest
 import requests
-from games.models import *
 
-VALID_GAME_ID = 1
-INVALID_GAME_ID = 0
-SERVER = "http://127.0.0.1:8000/"
+INVALID_ID = 0
 
-
-@pytest.mark.django_db
 class TestGamesId:
     """
     Tests API endpoints GET /api/games/, including the use of query
     parameters.
     """
+    
+    @pytest.fixture(autouse=True)
+    def set_fixtures(self, server, existing_review, existing_game):
+        """Sets fixures so that they can be called using self."""
+        self.server = server
+        self.existing_review = existing_review
+        self.existing_game = existing_game
 
     def test_get(self):
         """
         Tests GET /api/games/.
 
-        Passes when it returns the correct data and a HTTP 200 OK.
+        Passes when it returns the correct number of games and a HTTP 200 OK.
         """
-        r = requests.get(f'{SERVER}api/games/')
-        games = Game.objects.all().order_by('-release_date')
-        # Compare the results for the first 20 games
-        correct = True
-        for i, game in enumerate(games):
-            if r.json()[i]['title'] != game.title:
-                correct = False
-                break
-            if i == 20: break
+        r = requests.get(f"{self.server}api/games/")
             
-        assert correct and r.status_code == 200
+        assert len(r.json()) == 25 and r.status_code == 200
 
-    @pytest.mark.parametrize("game_id, response", [(VALID_GAME_ID, 200),
-                                                   (INVALID_GAME_ID, 404)])
-    def test_get_id_correct_http(self, game_id, response):
+    @pytest.mark.parametrize("game_id, response", [("existing_game", 200),
+                                                   (INVALID_ID, 404)])
+    def test_get_id(self, game_id, response):
         """
-        Tests GET /api/games/<game__id> for valid and invalid game_id for correct
-        HTTP responses.
+        Tests GET /api/games/<game__id> for valid and invalid game_id.
 
         Passes when:
         - Valid game_id returns correct data and a HTTP 200 OK.
         - Invalid game_id returns an HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/games/{game_id}')
-        assert r.status_code == response, (f"Expected = {response}. "
-                                           f"Response = {r.status_code}.")
+        if game_id == "existing_game": game_id = self.existing_game["id"]
 
-    def test_get_id_correct_data(self):
-        """
-        Tests GET /api/games/<game__id> on a valid game_id.
+        r = requests.get(f"{self.server}api/games/{game_id}")
 
-        Passes when it returns the correct data.
-        """
-        r = requests.get(f'{SERVER}api/games/{VALID_GAME_ID}')
-        game = Game.objects.get(pk=VALID_GAME_ID)
-        assert (r.json()['title'] == game.title and
-                'reviews' in r.json())
-        
-    def test_get_id_authenticated(self):
-        """
-        Tests GET /api/games/<game__id> for an authenticated user.
+        # Checks that game data matches fixture for successful GET
+        if response == 200:
+            assert all(r.json()[key] == self.existing_game[key]
+                       for key in self.existing_game)
 
-        Passes when it the response contains a link to post a review of the game.
-        """
-        r = requests.get(f'{SERVER}api/games/{VALID_GAME_ID}')
-        assert 'post_review' in r.json()
+        assert r.status_code == response
 
-    @pytest.mark.parametrize("game_id, response", [(VALID_GAME_ID, 200),
-                                                   (INVALID_GAME_ID, 404)])
-    def test_get_id_analytics_correct_http(self, game_id, response):
+    @pytest.mark.parametrize("game_id, response", [("existing_game", 200),
+                                                   (INVALID_ID, 404)])
+    def test_get_id_analytics(self, game_id, response):
         """
         Tests GET /api/games/<game__id>/analytics for valid and invalid game_id
         for correct HTTP responses.
@@ -79,60 +59,60 @@ class TestGamesId:
         - Valid game_id returns correct data and a HTTP 200 OK.
         - Invalid game_id returns an HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/games/{game_id}/analytics')
-        assert r.status_code == response, (f"Expected = {response}. "
-                                           f"Response = {r.status_code}.")
+        if game_id == "existing_game": game_id = self.existing_game["id"]
 
-    @pytest.mark.parametrize("game_id, response", [(VALID_GAME_ID, 200),
-                                                   (INVALID_GAME_ID, 404)])
-    def test_get_reviews_correct_http(self, game_id, response):
+        r = requests.get(f"{self.server}api/games/{game_id}/analytics")
+
+        assert r.status_code == response
+
+    @pytest.mark.parametrize("game_id, response", [("existing_game", 200),
+                                                   (INVALID_ID, 404)])
+    def test_get_reviews(self, game_id, response):
         """
         Tests GET /api/games/<game__id>/reviews/ for a valid and invalid game_id.
         
         Passes when:
-        - Valid game_id returns correct reviews and a HTTP 200 OK.
+        - Valid game_id returns a matching review and a HTTP 200 OK.
         - Invalid game_id returns a HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/games/{game_id}/reviews/')
-        assert r.status_code == response, (f"Expected = {response}. "
-                                           f"Response = {r.status_code}.")
+        if game_id == "existing_game": game_id = self.existing_game["id"]
 
-    def test_get_reviews_correct_data(self):
-        """
-        Tests GET /api/games/<game__id>/reviews/ for a valid game_id.
-        
-        Passes when the correct data is returned.
-        """
-        r = requests.get(f'{SERVER}api/games/{VALID_GAME_ID}/reviews/')
-        reviews = Review.objects.filter(game=VALID_GAME_ID).order_by('-date')
-        # Compares the first 10 reviews to check they match
-        correct = []
-        for i, review in enumerate(reviews):
-            correct.append(r.json()[i]['user']['username'] == review.user.username and
-                           r.json()[i]['game']['title'] == review.game.title and
-                           r.json()[i]['date'] == str(review.date) and
-                           r.json()[i]['score'] == review.score)
-            if i == 10: break
-            
-        assert all(correct)
+        r = requests.get(f"{self.server}api/games/{game_id}/reviews/")
+
+        # Checks that the response contains the fixture for a successful GET
+        if response == 200:
+            for review in r.json():
+                if review["id"] == self.existing_review["id"]:
+                    for key in self.existing_review:
+                        assert review[key] == self.existing_review[key]
+                break
+
+        assert r.status_code == response
 
     @pytest.mark.parametrize("category, value", [("genre", "action"),
                                                  ("platform", "pc"),
                                                  ("developer", "ea games"),
                                                  ("publisher", "nintendo"),
                                                  ("page", "5"),
-                                                 ("idonotexist", "meeither")])
+                                                 ("name", "disco"),
+                                                 ("idonotexist", "meeither"),
+                                                 (["genre", "platform"], ["action", "pc"])])
     def test_category(self, category, value):
         """
-        Tests the 4 API endpoints with the structure
-        GET /api/games/?category=value. Values must be case-insensitive.
+        Tests GET /api/games/?category=value. Values must be case-insensitive.
 
         Passes when:
         - They each return a HTTP 200 OK.
         - Non-existent category returns a HTTP 404 Not Found.
         """
-        params = {f"{category}": value}
-        r = requests.get(f'{SERVER}api/games/', params=params)
+        # Sets params based on test conditions
+        params = {}
+        if isinstance(category, list):
+            for i in range(len(category)):
+                params[category[i]] = value[i]
+        else: params = {f"{category}": value}
+
+        r = requests.get(f"{self.server}api/games/", params=params)
         
         # Check that every category is listing all its relevant data
         response = 200
@@ -140,12 +120,12 @@ class TestGamesId:
         
         assert r.status_code == response
 
-def test_method_not_allowed():
+def test_method_not_allowed(server):
     """
     Tests POST /api/games/
 
     Passes when it returns a HTTP 405 Method Not Allowed.
     """
     # Need to authenticate here
-    r = requests.post(f'{SERVER}api/games/')
-    assert r.status_code == 405, f"Expected 405. Response = {r.status_code}."
+    r = requests.post(f"{server}api/games/")
+    assert r.status_code == 405, f"Expected = 405. Response = {r.status_code}."

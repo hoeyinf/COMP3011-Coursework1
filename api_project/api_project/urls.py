@@ -16,12 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from oauth2_provider import urls as oauth2_urls
+from rest_framework_simplejwt import views as jwt_views
 
 app_name = "games"
 admin.autodiscover()
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('auth/', include("rest_framework.urls", namespace="rest_framework")),
+    path('api/token/', jwt_views.TokenObtainPairView.as_view(),
+         name ='token_obtain_pair'),
+    path('api/token/refresh/', jwt_views.TokenRefreshView.as_view(),
+         name ='token_refresh'),
     path('api/', include("games.urls"))
 ]

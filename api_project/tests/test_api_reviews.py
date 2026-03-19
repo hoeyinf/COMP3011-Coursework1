@@ -2,165 +2,281 @@
 import datetime
 import pytest
 import requests
-from games.models import Review
 
-VALID_USER_ID = 2
-VALID_GAME_ID = 1
-VALID_REVIEW_ID = 1
-INVALID_GAME_ID = 0
-INVALID_USER_ID = 0
-INVALID_REVIEW_ID = 0
-SERVER = "http://127.0.0.1:8000/"
+INVALID_ID = 0
 
-@pytest.mark.django_db
 class TestReviews:
     """
     Tests API endpoints for reviews:
     - GET /api/reviews/<review__id>
     - POST /api/reviews/
-    - PUT /api/reviews/<review__id>
+    - PATCH /api/reviews/<review__id>
     - DELETE /api/reviews/<review__id>
     """
 
-    @pytest.mark.parametrize("review_id, response", [(VALID_REVIEW_ID, 200),
-                                                     (INVALID_REVIEW_ID, 404)])
-    def test_get_id_correct_http(self, review_id, response):
+    @pytest.fixture(autouse=True)
+    def set_fixtures(self, server, new_review, patch_review, existing_review):
+        """Sets fixures so that they can be called using self."""
+        self.server = server
+        self.new_review = new_review
+        self.patch_review = patch_review
+        self.existing_review = existing_review
+
+    @pytest.mark.parametrize("review_id, response", [("existing_review", 200),
+                                                     (INVALID_ID, 404)])
+    def test_get_id(self, review_id, response):
         """
         Tests GET /api/reviews/<review__id>
-        
+
         Passes when:
         - Valid ID returns the correct review and a HTTP 200 OK.
         - Invalid ID returns a HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/reviews/{review_id}')
-        assert r.status_code == response, (f"Expected = {response}. "
-                                           f"Response = {r.status_code}.")
+        if review_id == "existing_review": review_id = self.existing_review["id"]
 
-    def test_get_id_correct_data(self):
-        """
-        Tests GET /api/reviews/<review__id> for an existing review.
-        
-        Passes when it returns the correct data for the review.
-        """
-        r = requests.get(f'{SERVER}api/reviews/{VALID_REVIEW_ID}')
-        review = Review.objects.get(pk=VALID_REVIEW_ID)
-        assert (r.json()['user']['username'] == review.user.username and
-                r.json()['game']['title'] == review.game.title and
-                r.json()['date'] == str(review.date) and
-                r.json()['score'] == review.score and
-                r.json()['content'] == review.content and
-                'url' in r.json()['game'] and
-                'url' in r.json()['user'])
-    
-    def test_get_own_id(self):
-        """
-        Tests GET /api/reviews/<review__id> for a user on their own review.
+        r = requests.get(f"{self.server}api/reviews/{review_id}")
 
-        Passes when it also provides a links to edit or delete the review, and
-        returns a 200 HTTP OK.
-        """
-        # login
-        r = requests.get(f'{SERVER}api/reviews/{VALID_REVIEW_ID}')
-        assert ('edit-review' in r.json() and
-                'delete-review' in r.json() and
-                r.status_code == 200)
-    
-    def test_get_other_id(self):
-        """
-        Tests GET /api/reviews/<review__id> for a user on review they did not
-        create.
+        # Checks the data matches fixture for a successful GET
+        if response == 200:
+            assert all(r.json()[key] == self.existing_review[key]
+                       for key in self.existing_review)
 
-        Passes when it does not provide a link to edit the review and returns a
-        HTTP 200 OK.
-        """
-        # login
-        r = requests.get(f'{SERVER}api/reviews/{VALID_REVIEW_ID}')
-        assert ('edit-review' not in r.json() and
-                'delete-review' not in r.json() and
-                r.status_code == 200)
+        assert r.status_code == response
 
-    @pytest.mark.parametrize("game_id, response", [(VALID_GAME_ID, 201),
-                                                   (INVALID_GAME_ID, 422),
-                                                   (VALID_GAME_ID, 409),
-                                                   (VALID_GAME_ID, 401)])
-    def test_post_correct_http(self, game_id, response):
+    @pytest.mark.parametrize("message, response", [
+        ("Provided fields are incorrect.", 400),
+        ("Required fields not provided.", 400),
+        ("Not authenticated (jwt not found).", 401),
+        ("Review already exists.", 409),
+        ("Game with id=0 not found.", 404)])
+    def test_post_invalid_request(self, message, response, admin_jwt):
         """
-        Tests POST /api/reviews/
+        Tests POST /api/reviews/ for an unauthenticated user,
+        an already existing review, and bad syntax in request data.
 
         Passes when:
-        - Valid game returns a 201 HTTP Created.
-        - Invalid game returns a HTTP 422 Unprocessable Content.
+        - Bad request syntax returns a HTTP 400 Bad Request
+        - Unauthenticated user returns a HTTP 401 Unauthorized.
         - Existing review returns a HTTP 409 Conflict.
-        - Unauthenticated user returns a HTTP 401 Unauthorized.
+        - Invalid game returns a HTTP 404 Not Found
         """
-        new_id = Review.objects.all().count() + 1
-        # Does not authenticate when testing for unauthenticated user
+        # Sets data based on test conditions
+        data = self.new_review
+        if response == 400:
+            if message == "Required fields not provided.":
+                data.pop("score")
+            else:
+                data["game_id"] = data.pop("game")
+        elif response == 404: data["game"] = INVALID_ID
+        elif response == 409:
+            data = self.patch_review
+            data.pop("id")
+            data["game"] = 495
+            data["date"] = datetime.date.today().strftime("%Y-%m-%d")
+
+        # Does not authenticate for unauthenticated test
         if response == 401:
-           r = requests.post(f'{SERVER}api/reviews/')
+            r = requests.post(f"{self.server}api/reviews/", data=data)
         else:
-            payload = {'game': game_id, 'date': datetime.date.today(),
-                       'score': 75, 'content': 'Example review content!!!'}
-            r = requests.post(f'{SERVER}api/reviews', data=payload)
-        # Deletes any review created by the above POST request
-        if Review.objects.all().count() == new_id:
-           Review.objects.get(pk=new_id).delete()
+            r = requests.post(f"{self.server}api/reviews/",
+                              headers={"Authorization": f"Bearer {admin_jwt}"},
+                              data=data)
 
-        assert r.status_code == response, (f"Expected = {response}. "
-                                           f"Response = {r.status_code}.")
-        
-    def test_post_correct_data(self):
+        assert r.status_code == response and r.json()["message"] == message
+
+    @pytest.mark.parametrize("field, value",[
+        ("date", (datetime.date.today()+datetime.timedelta(days=1))),
+        ("date", "January 1 2030"), ("score", -1), ("score", 101),
+        ("score", "five stars")])
+    def test_post_invalid_values(self, field, value, admin_jwt):
         """
-        Tests POST /api/reviews/ for an authenticated user on a valid game.
+        Tests POST /api/reviews/ for invalid values in request.
 
-        Passes when the review is successfully and correctly created.
+        Passes when they all return a HTTP 400 Bad Request.
         """
-        # Get current user:
-        # Use current user to get their review_n = Review.objects.filter().count()
-        payload = {'game': 1, 'date': datetime.date.today(), 'score': 75,
-                   'content': 'Example review content!!!'}
-        r = requests.post(f'{SERVER}api/reviews/', data=payload)
+        # Sets data based on test conditions
+        data = self.new_review
+        data[field] = value
 
-        # new_review = Review.objects.filter().latest('date')
-        # new_review_n = Review.objects.filter().count()
-        # correct = new_review.game.id == 1 and new_review.score == 75 and new_review.date == datetime.date.today() and new_review.content == 'Example review content!!!'
-        # new_review.delete()
-        # assert (review_n + 1 == new_review_n and correct)
-        assert False
+        r = requests.post(f"{self.server}api/reviews/",
+                            headers={"Authorization": f"Bearer {admin_jwt}"},
+                            data=data)
 
-    @pytest.mark.parametrize("review_id, expected",
-                             [(VALID_REVIEW_ID, 200), (VALID_REVIEW_ID, 401),
-                              (INVALID_REVIEW_ID, 404), (VALID_REVIEW_ID, 403)])
-    def test_put(self, review_id, expected):
+        assert r.status_code == 400, (f"If {r.status_code} == 201, you need to"\
+                                     " manually delete the post from database.")
+        assert field in r.text
+
+    def test_post_valid(self, admin_jwt):
         """
-        Tests PUT /api/reviews/<review__id>.
+        Test that POST /api/reviews/ works.
+
+        Passes when it returns the correct data and a HTTP 201 Created.
+        """
+        # Check that GET user reviews is working before testing post
+        admin = requests.get(f"{self.server}api/users/1/reviews/")
+        assert admin.status_code == 200, ("Can not test if GET api endpoints "\
+                                          "are not working properly.")
+
+        r = requests.post(f"{self.server}api/reviews/",
+                            headers={"Authorization": f"Bearer {admin_jwt}"},
+                            data=self.new_review)
+
+        # Reminders to manually delete entries in database if needed
+        admin = requests.get(f"{self.server}api/users/1/reviews")
+        assert len(admin.json()) == 2, ("Wrong review length. Manually "\
+                                        "check admin reviews and fix.")
+
+        # Checks that the new review is correct
+        for review in admin.json():
+            if review["content"] == self.new_review["content"]:
+                break
+        assert ("id" in review and "url" in review and
+                review["user"]["username"] == "admin" and
+                review["game"]["url"] == f"{self.server}api/games/"\
+                                         f"{self.new_review['game']}" and
+                review["date"] == self.new_review["date"] and
+                review["score"] == self.new_review["score"] and
+                review["content"] == self.new_review["content"] and
+                r.status_code == 201)
+
+        # Delete new review if needed
+        delete = requests.delete(f"{self.server}api/reviews/{review["id"]}",
+                                    headers={"Authorization": f"Bearer {admin_jwt}"})
+        assert delete.status_code == 204, ("Delete failed. Please manually "\
+                                           "delete new review if needed.")
+
+    @pytest.mark.parametrize("message, response", [
+        ("Provided fields are incorrect.", 400),
+        ("Review not provided.", 400),
+        ("Need to provide score or content to update.", 400),
+        ("Not authenticated (jwt not found).", 401),
+        ("You are not the author.", 403),
+        ("Review with id=0 not found.", 404)])
+    def test_patch_invalid_request(self, message, response, admin_jwt, valid_password):
+        """
+        Tests PATCH /api/reviews/<review__id> for an unauthenticated user,
+        a non-existent review, on another user's review, and bad syntax in
+        request data.
 
         Passes when:
-        - Valid review_id and authenticated user updates the correct review and
-        returns a HTTP 200 OK.
+        - Bad syntax returns a HTTP 400 Bad Request.
         - Unauthenticated user returns a HTTP 401 Unauthorized.
-        - Invalid review_id returns a HTTP 404 Not Found.
-        - Valid review_id from an authenticated user that is not its author
-        returns a HTTP 403 Forbidden
+        - Valid review from an authenticated user that is not its author
+        returns a HTTP 403 Forbidden.
+        - Invalid review returns a HTTP 404 Not Found.
         """
-        # review = Review.objects.get(id)
-        # old_score = review.score
-        # old_content = review.content
-        # payload_score = old_score - 1 if old_score > 0 else: payload_score = 100
-        # payload_content = f'{old_content}!'
-        # if expected == 200 or expected == 403:
-        #     if expected == 200: login
-        #     else: bad login
-        # payload = {'score': payload_score, 'content': payload_content}
-        # r = requests.put(f'{SERVER}api/reviews/{review_id}', data=payload)
-        # new_review = Review.objects.get(id)
-        # if expected == 200:
-        #     assert (new_review.score == old_score - 1 or new_review.score == 100) and new_review.content = f'{old_content}!' and  r.status_code == expected
-        # else: assert new_review.score == old_score and new_review.content == old_content and r.status_code == expected
-        assert False
+        # Sets data to be different than fixture
+        data = self.patch_review
+        id = data.pop("id")
+        data["score"] = 42
+        data["content"] = "Review updated successfully"
 
+        # Sets data based on and test conditions
+        if response == 400:
+            if message == "Provided fields are incorrect.":
+                data["rating"] = data.pop("score")
+            elif message == "Review not provided.": id = ""
+            else:
+                data.pop("score")
+                data.pop("content")
+        elif response == 404: id = INVALID_ID
+        # Logins in with different user
+        if response == 403:
+            login = requests.post(f"{self.server}api/token/",
+                                  data={"username":"valid_username",
+                                        "password": valid_password})
+            jwt = login.json()["access"]
+        else: jwt = admin_jwt
 
-    @pytest.mark.parametrize("expected", [204, 404, 401, 403])
-    def test_delete(self, expected):
+        if response == 401:
+            r = requests.patch(f"{self.server}api/reviews/{id}",
+                               data=data)
+        else:
+            r = requests.patch(f"{self.server}api/reviews/{id}",
+                               headers={"Authorization": f"Bearer {jwt}"},
+                               data=data)
+
+        # If successful, assume that it works correctly to undo the update
+        if r.status_code == 204:
+            requests.patch(f"{self.server}api/reviews/{self.patch_review["id"]}",
+                             headers={"Authorization": f"Bearer {jwt}"},
+                             data=self.patch_review)
+        
+        assert r.status_code == response and r.json()["message"] == message
+
+    @pytest.mark.parametrize("value", [-1, 101, "ten"])
+    def test_patch_invalid_scores(self, value, admin_jwt):
+        """
+        Tests PATCH /api/reviews/<review__id> for invalid scores in request.
+
+        Passes when they all return a HTTP 400 Bad Request and appropriate
+        error message.
+        """
+        data = self.patch_review
+        id = data.pop("id")
+        data["score"] = value
+
+        r = requests.patch(f"{self.server}api/reviews/{id}",
+                           headers={"Authorization": f"Bearer {admin_jwt}"},
+                           data=data)
+
+        # If successful, assume that it works correctly to undo the update
+        if r.status_code == 204:
+            requests.patch(f"{self.server}api/reviews/{id}",
+                           headers={"Authorization": f"Bearer {admin_jwt}"},
+                           data=self.patch_review)
+        
+        assert r.status_code == 400 and "score" in r.text
+
+    @pytest.mark.parametrize("new_data", [
+        ({"score": 0, "content": "Updated successfully"}), ({"score": 0}),
+        ({"content": "Updated successfully"})
+        ])
+    def test_patch_valid(self, new_data, admin_jwt):
+        """
+        Tests PATCH /api/reviews/<review__id> valid requests, making sure that
+        excluding a field has intended behaviour.
+
+        Passes when they all return a HTTP 200 OK.
+        """
+        # Sets data based on test conditions
+        data = self.patch_review.copy()
+        id = data.pop("id")
+        for key in ["score", "content"]:
+            if key in new_data: data[key] = new_data[key]
+            else: data.pop(key)
+
+        r = requests.patch(f"{self.server}api/reviews/{id}",
+                           headers={"Authorization": f"Bearer {admin_jwt}"},
+                           data=data)
+
+        # Check that review is now updated
+        check = requests.get(f"{self.server}api/reviews/{id}")
+        assert check.status_code == 200, "Could not verify review status."
+        review = check.json()
+        assert (review["id"] == id and review["user"]["username"] == "admin" and
+                review["game"]["title"] == "Disco Elysium: The Final Cut" and
+                all(review[key] == data[key] for key in new_data))
+        
+        # If successful, assume that it works correctly to undo the update
+        if r.status_code == 204:
+            redata = self.patch_review
+            redata.pop("id")
+            repatch = requests.patch(f"{self.server}api/reviews/{id}",
+                                     headers={"Authorization": f"Bearer {admin_jwt}"},
+                                     data=redata)
+            assert repatch.status_code == 204, "Repatch failed!"
+
+        assert r.status_code == 204
+        
+
+    @pytest.mark.parametrize("message, response", [
+        ("", 204),
+        ("Review not provided.", 400),
+        ("Review not found.", 404),
+        ("Not authenticated (jwt not found).", 401),
+        ("You are not the author.", 403)])
+    def test_delete(self, message, response, admin_jwt, valid_password):
         """
         Tests DELETE /api/reviews/<review__id>.
 
@@ -170,16 +286,42 @@ class TestReviews:
         - Unauthenticated user returns a HTTP 401 Unauthorized
         - Another user's review returns a HTTP 403 Forbidden.
         """
-        # review_id = Review.objects.latest('id').id + 1
-        # review = Review(game=VALID_REVIEW_ID, score=50, content="Example content")
-        # review.save()
-        # if expected == 200 or expected == 403:
-        #     if expected == 200: login
-        #     else: bad login
-        # r = requests.delete(f'{SERVER}api/reviews/{review_id}')
-        # try:
-        #     new_review = Review.objects.get(review_id)
-        #     assert new_review.score == 50 and new_review.content = "Example content" and r.status_code == expected
-        # except Review.DoesNotExist:
-        #     assert r.status_code == expected
-        assert False
+        # Creates new post to test for deletion
+        new_review = self.new_review
+        new_review["game"] = 1234
+        new_review["content"] = "Created to test deletion."
+        post = requests.post(f"{self.server}api/reviews/",
+                             headers={"Authorization": f"Bearer {admin_jwt}"},
+                             data=new_review)
+        assert post.status_code == 201, (f"{post.status_code} == 201"\
+                                         "New review could not be created.")
+
+        # Sets parameters based on test conditions
+        if response == 400: review_id = ""
+        else: review_id = post.json()["id"]
+        jwt = admin_jwt
+        if response == 404: review_id = INVALID_ID
+        elif response == 403:
+            login = requests.post(f"{self.server}api/token/",
+                                  data={"username":"valid_username",
+                                        "password": valid_password})
+            jwt = login.json()["access"]
+
+        if response == 401:
+            r = requests.delete(f"{self.server}api/reviews/{review_id}")
+        else:
+            r = requests.delete(f"{self.server}api/reviews/{review_id}",
+                                headers={"Authorization": f"Bearer {jwt}"},)
+
+        assert r.status_code == response, (
+            f"{r.status_code} == {response}. "\
+            "Check database to delete this review if needed.")
+
+        if response != 204:
+            assert r.json()["message"] == message
+            # Deletes any actual review that's still there
+            admin_reviews = requests.get(f"{self.server}api/users/1/reviews/")
+            for review in admin_reviews.json():
+                if review["content"] == "Created to test deletion.":
+                    requests.delete(review["url"],
+                                    headers={"Authorization": f"Bearer {admin_jwt}"})

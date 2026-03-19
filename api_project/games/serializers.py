@@ -2,9 +2,8 @@
 Contains serializers that allow for easier serialization and deserialization of data into JSON
 for API calls.
 """
-
+import datetime
 from rest_framework import serializers as s
-from django.contrib.auth.models import User
 from games.models import Game, Review, User
 
 
@@ -39,19 +38,14 @@ class GameSerializer(DynamicFieldsSerializer):
     class Meta:
         model = Game
         fields = ["id", "title", "url", "release_date", "rating", "description",
-                  "genre", "platforms", "developers", "publishers", "reviews",
+                  "genre", "platforms", "developers", "publishers","reviews",
                   "reviews_n"]
-    """
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation['reviews_n'] = instance.reviews.count()
-        return representation
-    """
 
 
 class UserSerializer(DynamicFieldsSerializer):
     """Serializer for a user."""
     reviews = s.HyperlinkedIdentityField(view_name='user-reviews')
+
     class Meta:
         model = User
         fields = ["id", "username", "url", "reviews"]
@@ -59,8 +53,32 @@ class UserSerializer(DynamicFieldsSerializer):
 
 class ReviewSerializer(DynamicFieldsSerializer):
     """Serializer for a review."""
-    user = UserSerializer(fields=['username', 'url'])
-    game = GameSerializer(fields=['title', 'url'])
+    user = UserSerializer(fields=['username', 'url'], read_only=True)
+    game = GameSerializer(fields=['title', 'url'], read_only=True)
+
     class Meta:
         model = Review
         fields = ["id", "url", "user", "game", "date", "score", "content"]
+        read_only_fields = ["id", "url"]
+
+    def validate_date(self, date):
+        """Validator for review date"""
+        if not isinstance(date, datetime.date):
+            raise s.ValidationError("Date must be in format datetime.date format YYYY-MM-DD")
+        if date > datetime.date.today():
+            raise s.ValidationError("Date can not be in the future.")
+        return date
+
+    def create(self, validated_data):
+        """Used by POST /api/reviews"""
+        return Review.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        """Used by PATCH /api/reviews/{review__id}"""
+        if "score" in validated_data:
+            instance.score = validated_data["score"]
+        if "content" in validated_data:
+            instance.content = validated_data["content"]
+        instance.date = instance.date
+        instance.save()
+        return instance

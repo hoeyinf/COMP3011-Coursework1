@@ -1,17 +1,9 @@
 """Unit tests for API methods regarding users."""
 import pytest
 import requests
-from django.contrib.auth import authenticate
-from games.models import User, Review
 
-VALID_USER_ID = 2
-VALID_GAME_ID = 1
-INVALID_GAME_ID = 0
-INVALID_USER_ID = 0
-SERVER = "http://127.0.0.1:8000/"
+INVALID_ID = 0
 
-
-@pytest.mark.django_db
 class TestUsers:
     """
     Tests authentication via Django's provided User model, as well as the
@@ -20,157 +12,164 @@ class TestUsers:
     - GET /api/users/<user_id>/reviews/
     - POST /api/users/
     """
-    @pytest.mark.parametrize("username, password, valid", [
-        ("valid_username", "thisisavalidpassword", True),
-        ("idonotexist", "thisisavalidpassword", False),
-        ("valid_username", "thisisnotmypassword", False)])
-    def test_authentication(self, username, password, valid):
-        """
-        Tests logging in.
-        
-        Passes when it returns a valid login works and an invalid one does not.
-        """
-        # Creates user when checking for a valid password
-        if username == "valid_username":
-            user = User.objects.create_user(username, "", "thisisavalidpassword")
-        # Logs in with credentials
-        login = authenticate(username=username, password=password)
-        
-        if username == "valid_username": user.delete()
+    @pytest.fixture(autouse=True)
+    def set_fixtures(self, server, valid_password, existing_review,
+                     existing_user):
+        """Sets fixures so that they can be called using self."""
+        self.server = server
+        self.valid_password = valid_password
+        self.existing_user = existing_user
+        self.existing_review = existing_review
 
-        if valid: assert login is not None
-        if not valid: assert login is None
-    
-    @pytest.mark.parametrize("user_id, response", [(VALID_USER_ID, 200),
-                                                   (INVALID_USER_ID, 404)])
-    def test_get_correct_http(self, user_id, response):
+    @pytest.mark.parametrize("username, password, response", [
+        ("admin", "valid_password", 200),
+        ("idonotexist", "valid_password", 401),
+        ("admin", "thisisnotmypassword", 401)
+        ])
+    def test_get_jwt(self, username, password, response):
         """
-        Tests GET /api/users/<user_id> on a valid and invalid user_id for
-        correct HTTP responses.
+        Tests getting a jwt at POST /api/token/
+        
+        Passes when valid credentials retrieve an access and refresh token and a
+        HTTP 200 OK, and an invalid login returns a HTTP 401 Unauthorized.
+        """
+        if password == "valid_password": password = self.valid_password
+
+        credentials = {"username": username, "password": password}
+        r = requests.post(f"{self.server}api/token/", data=credentials)
+
+        # Checks that tokens are in response for a successful login
+        if response == 200:
+            assert "access" in r.json() and "refresh" in r.json()
+
+        assert r.status_code == response
+    
+    @pytest.mark.parametrize("user_id, response", [("existing_user", 200),
+                                                   (INVALID_ID, 404)])
+    def test_get(self, user_id, response):
+        """
+        Tests GET /api/users/<user_id> on a valid and invalid user_id.
         
         Passes when:
-        - Valid user_id returns a HTTP 200 OK.
+        - Valid user_id returns the correct data and a HTTP 200 OK.
         - Invalid user_id returns a HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/users/{user_id}')
-        assert r.status_code == response, (f"Expected = {response}. "
-                                           f"Response = {r.status_code}.")
+        if user_id == "existing_user": user_id = self.existing_user["id"]
 
-    def test_get_correct_data(self):
-        """
-        TESTS GET /api/users/<user_id> on a valid user_id.
-        
-        Passes when it returns the correct data for the user, including a link
-        to their reviews.
-        """
-        r = requests.get(f'{SERVER}api/users/{VALID_USER_ID}')
-        user = User.objects.get(pk=VALID_USER_ID)
-        assert r.json()['username'] == user.username and 'reviews' in r.json()
+        r = requests.get(f"{self.server}api/users/{user_id}")
 
-    @pytest.mark.parametrize("user_id, response", [(VALID_USER_ID, 200),
-                                                   (INVALID_USER_ID, 404)])
-    def test_get_reviews_correct_http(self, user_id, response):
+        # Checks that user data matches fixture for a successful GET
+        if response == 200:
+            assert all(r.json()[key] == self.existing_user[key]
+                       for key in self.existing_user)
+
+        assert r.status_code == response
+
+    @pytest.mark.parametrize("user_id, response", [("existing_user", 200),
+                                                   (INVALID_ID, 404)])
+    def test_get_reviews(self, user_id, response):
         """
         Tests GET /api/users/<user_id>/reviews/ on a valid and invalid user_id
         for correct HTTP responses.
         
         Passes when:
-        - Valid user_id returns correct reviews and a HTTP 200 OK.
+        - Valid user_id returns a correct review and a HTTP 200 OK.
         - Invalid user_id returns a HTTP 404 Not Found.
         """
-        r = requests.get(f'{SERVER}api/users/{user_id}/reviews/')
-        assert r.status_code == response, (f"Expected = {response}. "
-                                           f"Response = {r.status_code}.")
+        if user_id == "existing_user": user_id = self.existing_user["id"]
 
-    @pytest.mark.parametrize("user_id, expected", [(VALID_USER_ID, 4),
-                                                   (1, 0)])
-    def test_get_reviews_size(self, user_id, expected):
-        """
-        Tests GET /api/users/<user_id>/reviews/ on a users with and without
-        reviews.
-        
-        Passes when correct number of reviews is returned for each user.
-        """
-        r = requests.get(f'{SERVER}api/users/{user_id}/reviews/')
-        assert len(r.json()) == expected, (f"Expected = {expected}. "
-                                           f"Result = {len(r.json())}")
-    
-    def test_get_reviews_correct_data(self):
-        """
-        Tests GET /api/users/<user_id>/reviews/ on a valid user with
-        multiple reviews.
-        
-        Passes when it returns correct review data for all reviews.
-        """
-        r = requests.get(f'{SERVER}api/users/{VALID_USER_ID}/reviews/')
-        reviews = Review.objects.filter(user=VALID_USER_ID)
-        # Loop through each review and check that it returns correct data
-        correct = []
-        for i, review in enumerate(reviews):
-            correct.append((r.json()[i]['user']['username'] == review.user.username and
-                            r.json()[i]['game']['title'] == review.game.title and
-                            r.json()[i]['date'] == str(review.date) and
-                            r.json()[i]['score'] == review.score and
-                            r.json()[i]['content'] == review.content and
-                            'url' in r.json()[i]['game'] and
-                            'url' in r.json()[i]['user']))
-        assert all(correct)
+        r = requests.get(f"{self.server}api/users/{user_id}/reviews/")
 
-    @pytest.mark.parametrize("username, password, expected", [
-        ("admin", "thisisavalidpassword", 409),
-        ("valid_username", "shortpass", 400),
-        ("valid_username", "password123", 400),
-        ("valid_username", "102934857", 400),
-        ("", "thisisavalidpassword", 400)])
-    def test_post_invalid(self, username, password, expected):
-        """
-        Tests POST /api/users/ on a invalid usernames and passwords.
+        # Checks that one of the reviews retrieved matches the fixture
+        if response == 200:
+            for review in r.json():
+                if review["id"] == self.existing_review["id"]:
+                    assert all(review[key] == self.existing_review[key]
+                               for key in self.existing_review)
+                break
         
-        Passes when the correct HTTP status codes are returned.
+        assert r.status_code == response
+
+    def test_get_reviews_size(self):
         """
-        if username != "admin":
-            try:
-                user = User.objects.get(username=username)
-                user.delete()
-            except User.DoesNotExist:
-                pass
-            
+        Tests GET /api/users/<user_id>/reviews/ on an existing user
+        
+        Passes when correct number of reviews is returned.
+        """
+        r = requests.get(
+            f"{self.server}api/users/{self.existing_user["id"]}/reviews/"
+        )
+        n = len(r.json())
+
+        assert n == 4, (f"Expected = 4. Result = {n}")
+
+    @pytest.mark.parametrize("username, password, message, response", [
+        ("admin", "valid_password", "Username 'admin' already taken.", 409),
+        ("valid_username", "shortpass", "invalid_password", 400),
+        ("valid_username", "password123", "invalid_password", 400),
+        ("valid_username", "102934857", "invalid_password", 400),
+        ("", "thisisavalidpassword", "Username '' is too short.", 400),
+        ("valid_username", "valid_password", "", 201)
+        ])
+    def test_post(self, username, password, message, response):
+        """
+        Tests POST /api/users/ on a invalid usernames and passwords,
+        and a valid login.
+        
+        Passes when the correct error messages and HTTP status codes are returned.
+        """
+        if password == "valid_password": password = self.valid_password
+        if message == "invalid_password":
+            message = "Invalid password. Must be at least 12 characters long "\
+                      "with letters."
+
         credentials = {"username": username, "password": password}
-        r = requests.post(f'{SERVER}api/users/', data=credentials)
+        r = requests.post(f"{self.server}api/users/", data=credentials)
 
-        assert r.status_code == expected
+        # Checks that response contains the correct data
+        if response == 201:
+            # Reminder to delete the created user between tests manually
+            assert "username" in r.json(), "Username not in response. "\
+                                           "Remember to delete valid_username "\
+                                           f"if HTML: {r.status_code} == 409."
+            assert r.json()["username"] == username and "url" in r.json()
+   
+        else:
+            assert r.json()["message"] == message
+        
+        assert r.status_code == response
 
-    def test_post_no_credentials(self):
+    @pytest.mark.parametrize("field", ["username", "password", "neither"])
+    def test_post_missing_credentials(self, field):
         """
         Tests POST /api/users/ with no provided username or password.
         
-        Passes when the correct HTTP status codes are returned.
+        Passes when the correct HTTP status codes and error messages are
+        returned.
         """
+        # Omits fields for each test
+        data = {}
+        if field != "neither": data[field] = field
+        r = requests.post(f"{self.server}api/users/", data=data)
         
-        r1 = requests.post(f'{SERVER}api/users/',
-                           data={"password": "thisisavalidpassword"})
-        r2 = requests.post(f'{SERVER}api/users/',
-                           data={"username": "valid_username"})
-        r3 = requests.post(f'{SERVER}api/users/')
-        
-        assert (r1.status_code == 400 and r2.status_code == 400 and
-                r3.status_code == 400)
-        
-    def test_post_valid(self):
+        assert (r.status_code == 400 and
+                r.json()["message"] == "Username/password not provided.")
+
+    @pytest.mark.parametrize("field", ["username", "password", "extra"])
+    def test_post_bad_syntax(self, field):
         """
-        Tests POST /api/users/ on valid credentials
+        Tests POST /api/users/ with bad syntax.
         
-        Passes when it returns a HTTP 201 Created and the correct username.
+        Passes when the correct HTTP status code and error message is
+        returned.
         """
+        # Sets data for misspelled fields or an extra field for each test
+        data = {"username": "admin", "password": self.valid_password}
+        if field == "username": data["user"] = data.pop(field)
+        elif field == "password": data["pw"] = data.pop(field)
+        else: data["extra"] = "Extra field for funsies."
         
-        r = requests.post(f'{SERVER}api/users/',
-                          data={"username": "valid_username",
-                                "password": "thisisavalidpassword"})
+        r = requests.post(f"{self.server}api/users/", data=data)
         
-        try:
-            user = User.objects.get(username="valid_username")
-            user.delete()
-        except User.DoesNotExist:
-            pass
-        
-        assert r.status_code == 201 and r.json()['username'] == "valid_username"
+        assert (r.status_code == 400 and
+                r.json()["message"] == "Provided data fields are incorrect.")
