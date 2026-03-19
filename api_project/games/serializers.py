@@ -3,6 +3,7 @@ Contains serializers that allow for easier serialization and deserialization of 
 for API calls.
 """
 import datetime
+from django.db.models import Avg, Count
 from rest_framework import serializers as s
 from games.models import Game, Review, User
 
@@ -49,16 +50,49 @@ class UserSerializer(DynamicFieldsSerializer):
     reviews_n = s.IntegerField()
     average_review_score = s.IntegerField()
     reviews_hist = s.SerializerMethodField(method_name="get_reviews_hist")
+    recent_reviews = s.SerializerMethodField(method_name="get_recent_reviews")
+    favorite_genres = s.SerializerMethodField(method_name="get_favorite_genres")
+    favorite_games = s.SerializerMethodField(method_name="get_favorite_games")
 
     class Meta:
         model = User
         fields = ["id", "username", "url", "reviews", "reviews_n",
-                  "average_review_score", "reviews_hist"]
+                  "average_review_score", "reviews_hist", "recent_reviews",
+                  "favorite_genres", "favorite_games"]
 
+    # Getters for fields below
     def get_reviews_hist(self, obj):
-        return self.context.get("reviews_hist")
-        
+        reviews = self.context.get("reviews")
+        reviews_hist = [reviews.filter(score__lte=20).count(),
+                        reviews.filter(score__gt=20, score__lte=40).count(),
+                        reviews.filter(score__gt=40, score__lte=60).count(),
+                        reviews.filter(score__gt=60, score__lte=80).count(),
+                        reviews.filter(score__gt=80, score__lte=100).count()]
+        return reviews_hist
 
+    def get_recent_reviews(self, obj):
+        reviews = self.context.get("reviews").order_by("-date")[:3]
+        return ReviewSerializer(
+            reviews,
+            context={'request': self.context.get("request")},
+            many=True, fields=["url", "game", "score", "date"]
+            ).data
+    
+    def get_favorite_genres(self, obj):
+        reviews = (self.context.get("reviews")
+                   .values("game__genre__name")
+                   .annotate(genre_count=Count("game__genre__name"))
+                   .order_by("-genre_count")[:3])
+        genres = [review["game__genre__name"] for review in reviews]
+        return genres
+    
+    def get_favorite_games(self, obj):
+        reviews = self.context.get("reviews").order_by("-score")[:3]
+        return ReviewSerializer(
+            reviews,
+            context={'request': self.context.get("request")},
+            many=True, fields=["game", "score"]
+            ).data
 
 
 class ReviewSerializer(DynamicFieldsSerializer):

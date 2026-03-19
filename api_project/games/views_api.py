@@ -6,7 +6,6 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from django.db.models import Avg, Count
 from rest_framework import generics, status
-from rest_framework.decorators import api_view
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,8 +14,14 @@ from .serializers import *
 class Users(APIView):
     """Views for creating and viewing users (POST, GET)"""
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         """View for POST /api/users/"""
+        # Checks that the correct endpoint (without user id) is being used
+        if "pk" in kwargs:
+            return Response({"message": "Wrong API endpoint. Use: "\
+                                        "POST api/users/"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         if request.method == "GET":
             return Response(
                 {"message": "User id not provided in url.\n"\
@@ -74,26 +79,21 @@ class Users(APIView):
 
     def get(self, request, *args, **kwargs):
         """View for GET /api/users/<user__id>"""
-        if "pk" not in self.kwargs:
+        if "pk" not in kwargs:
             return Response({"message": "User id not provided in url."},
                             status=status.HTTP_404_NOT_FOUND)
-        else: pk = self.kwargs["pk"]
+        else: pk = kwargs["pk"]
         try:
             user = User.objects.annotate(
                 reviews_n=Count("review"),
                 average_review_score=Avg("review__score")).get(pk=pk)
 
-            # Gathers histogram data
+            # Passes review data to serializer for processing
             reviews = Review.objects.filter(user__id=user.id)
-            reviews_hist = [reviews.filter(score__lte=20).count(),
-                            reviews.filter(score__gt=20, score__lte=40).count(),
-                            reviews.filter(score__gt=40, score__lte=60).count(),
-                            reviews.filter(score__gt=60, score__lte=80).count(),
-                            reviews.filter(score__gt=80, score__lte=100).count()]
-            
             serializer = UserSerializer(user,
                                         context={'request': request,
-                                                 'reviews_hist': reviews_hist})
+                                                 'reviews': reviews}
+            )
             return Response(serializer.data, status=status.HTTP_200_OK)
         except User.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -118,10 +118,16 @@ class Reviews(APIView):
             return Response({"message": f"Review with id={pk} not found."},
                             status=status.HTTP_404_NOT_FOUND)
     
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         """View for POST /api/reviews/"""
         fields = ["game", "date", "score", "content"]
-        
+
+        # Checks that the correct endpoint (without review id) is being used
+        if "pk" in kwargs:
+            return Response({"message": "Wrong API endpoint. Use: "\
+                                        "POST api/reviews/"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         if request.user.is_authenticated:
             # Checks that fields provided are correct
             if any(key not in fields for key in request.data):
@@ -157,17 +163,18 @@ class Reviews(APIView):
                 return Response(data=serializer.errors,
                                 status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({"message": "Not authenticated (jwt not found)."},
-                            status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"message": "Not authenticated (jwt not found).",
+                             "get_jwt": f"{request.get_host()}/api/token/"},
+                             status=status.HTTP_401_UNAUTHORIZED)
     
     def patch(self, request, *args, **kwargs):
         """View for PATCH /api/reviews/<review__id>"""
+        # Checks that data provided is correct
+        if "pk" not in kwargs:
+            return Response({"message": "Review not provided."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         if request.user.is_authenticated:
-            # Checks that data provided is correct
-            if "pk" not in kwargs:
-                return Response({"message": "Review not provided."},
-                                status=status.HTTP_400_BAD_REQUEST)
             pk = kwargs["pk"]
             if any(key not in ["score", "content"] for key in request.data):
                 return Response({"message": "Provided fields are incorrect."},
@@ -204,10 +211,12 @@ class Reviews(APIView):
     
     def delete(self, request, *args, **kwargs):
         """View for DELETE /api/reviews/<review__id>"""
+        # Checks that review id was provided
+        if "pk" not in kwargs:
+            return Response({"message": "Review not provided."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         if request.user.is_authenticated:
-            if "pk" not in kwargs:
-                return Response({"message": "Review not provided."},
-                                status=status.HTTP_400_BAD_REQUEST)
             pk = kwargs["pk"]
             try:
                 review = Review.objects.get(pk=pk)
@@ -220,22 +229,23 @@ class Reviews(APIView):
                 return Response({"message": "Review not found."},
                                 status=status.HTTP_404_NOT_FOUND)
         else:
-            return Response({"message": "Not authenticated (jwt not found)."},
+            return Response({"message": "Not authenticated (jwt not found).",
+                             "get_jwt": f"{request.get_host()}/api/token/"},
                             status=status.HTTP_401_UNAUTHORIZED)
 
 
 class Games(generics.ListAPIView):
     queryset = Game.objects.all().order_by('-release_date')
     pagination_class = PageNumberPagination
-    known_params = ["genre", "platform", "developer", "publisher", "page", "name"]
+    known_params = ["genre", "platform", "developer", "publisher", "page", "title"]
     
-    def get_queryset(self, request):
+    def get_queryset(self):
         """Filters queryset based on query parameters."""
-        genre = request.query_params.get("genre")
-        platform = request.query_params.get("platform")
-        developer = request.query_params.get("developer")
-        publisher = request.query_params.get("publisher")
-        name = request.query_params.get("name")
+        genre = self.request.query_params.get("genre")
+        platform = self.request.query_params.get("platform")
+        developer = self.request.query_params.get("developer")
+        publisher = self.request.query_params.get("publisher")
+        title = self.request.query_params.get("title")
         if genre is not None:
             self.queryset = self.queryset.filter(genre__name__iexact=genre)
         if platform is not None:
@@ -244,8 +254,8 @@ class Games(generics.ListAPIView):
             self.queryset = self.queryset.filter(developers__name__iexact=developer)
         if publisher is not None:
             self.queryset = self.queryset.filter(publishers__name__iexact=publisher)
-        if name is not None:
-            self.queryset = self.queryset.filter(title__icontains=name)
+        if title is not None:
+            self.queryset = self.queryset.filter(title__icontains=title)
 
         return super().get_queryset()
     
@@ -265,7 +275,7 @@ class Games(generics.ListAPIView):
                    for param in request.query_params):
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
-            games = self.get_queryset(request)
+            games = self.get_queryset()
             pages = self.paginate_queryset(games)
             serializer = GameSerializer(pages, context={'request': request},
                                         many=True, fields=['id', 'title', 'url',

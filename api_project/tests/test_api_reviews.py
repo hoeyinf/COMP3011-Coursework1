@@ -290,7 +290,7 @@ class TestReviews:
         """
         # Creates new post to test for deletion
         new_review = self.new_review
-        new_review["game"] = 1234
+        new_review["game"] = 1000
         new_review["content"] = "Created to test deletion."
         post = requests.post(f"{self.server}api/reviews/",
                              headers={"Authorization": f"Bearer {admin_jwt}"},

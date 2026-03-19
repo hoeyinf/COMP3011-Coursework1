@@ -102,7 +102,7 @@ class TestGamesId:
                                                  ("developer", "ea games"),
                                                  ("publisher", "nintendo"),
                                                  ("page", "5"),
-                                                 ("name", "disco"),
+                                                 ("title", "disco"),
                                                  ("idonotexist", "meeither"),
                                                  (["genre", "platform"],
                                                   ["action", "pc"])])
