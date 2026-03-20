@@ -1,10 +1,11 @@
 # COMP3011-Coursework1
 Videogame Review REST API.
 Live deployment at: https://hoeyinfoong.pythonanywhere.com/
+Example of a live GET API endpoint at: https://hoeyinfoong.pythonanywhere.com/api/games/
 
 This project provides an API service for users to create, read, update, and
-delete reviews for videogames. There are also endpoints for retrieving user,
-game, and review data.
+delete reviews for videogames. There are also endpoints for user creation,
+and for retrieving user, game, and review data.
 
 Some of these endpoints also provide light data analysis.
 For example, user profiles will calculate the user's average score,
@@ -27,8 +28,8 @@ e.g. http://127.0.0.1:8000/ and the API endpoints should be ready to use.
 API Documentation is in APIDocumentation.pdf
 
 The format for each endpoint is server + "api" + endpoint.
-For example, with server = http://127.0.0.1:8000/ and endpoint = `/games/`,
-the actual GET endpoint is http://127.0.0.1:8000/api/games/
+For example, with server = http://127.0.0.1:8000/ and endpoint = `/games/`,<br>
+the actual GET endpoint is http://127.0.0.1:8000/api/games/<br>
 For live deployment it would be: https://hoeyinfoong.pythonanywhere.com/api/games/
 
 
