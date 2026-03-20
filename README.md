@@ -1,6 +1,6 @@
 # COMP3011-Coursework1
 Videogame Review REST API.
-Live deployment at: https://hoeyinfoong.pythonanywhere.com/
+Live deployment at: https://hoeyinfoong.pythonanywhere.com/<br>
 Example of a live GET API endpoint at: https://hoeyinfoong.pythonanywhere.com/api/games/
 
 This project provides an API service for users to create, read, update, and
@@ -31,6 +31,13 @@ The format for each endpoint is server + "api" + endpoint.
 For example, with server = http://127.0.0.1:8000/ and endpoint = `/games/`,<br>
 the actual GET endpoint is http://127.0.0.1:8000/api/games/<br>
 For live deployment it would be: https://hoeyinfoong.pythonanywhere.com/api/games/
+
+## Testing
+There are pytest unit tests available to check if the APIs are running correctly.
+1. In api_project/tests/conftest.py, change the `SERVER` constant on line 6 to be your development server.
+2. While the server is running, open a new terminal and use `pytest` in the same folder that the server was run from.
+The terminal should then show the tests running and their results.
+
 
 
 
