@@ -1,7 +1,6 @@
 """Defines the views for API endpoints regarding users."""
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
-from django.db.models import Avg, Count
 from rest_framework import generics, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response

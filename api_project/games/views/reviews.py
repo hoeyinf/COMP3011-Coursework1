@@ -1,5 +1,4 @@
 """Defines the views for API endpoints regarding reviews."""
-from django.contrib.auth.password_validation import validate_password
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
