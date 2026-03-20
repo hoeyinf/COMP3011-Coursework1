@@ -4,7 +4,7 @@ import os
 import pytest
 import requests
 
-SERVER = "http://127.0.0.1:8000/"
+SERVER = "https://hoeyinfoong.pythonanywhere.com/"
 PASSWORD = os.environ["VALID-PASSWORD"]
 
 @pytest.fixture
