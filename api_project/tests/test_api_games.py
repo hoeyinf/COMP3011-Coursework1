@@ -9,7 +9,7 @@ class TestGamesId:
     Tests API endpoints GET /api/games/, including the use of query
     parameters.
     """
-    
+
     @pytest.fixture(autouse=True)
     def set_fixtures(self, server, existing_review, existing_game):
         """Sets fixures so that they can be called using self."""
@@ -21,11 +21,12 @@ class TestGamesId:
         """
         Tests GET /api/games/.
 
-        Passes when it returns the correct number of games and a HTTP 200 OK.
+        Passes when it returns a HTTP 200 OK.
         """
         r = requests.get(f"{self.server}api/games/")
             
-        assert len(r.json()) == 25 and r.status_code == 200
+        assert (r.status_code == 200 and "games" in r.json() and
+                "analytics" in r.json())
 
     @pytest.mark.parametrize("game_id, response", [("existing_game", 200),
                                                    (INVALID_ID, 404),
@@ -57,31 +58,36 @@ class TestGamesId:
         assert r.status_code == response
 
     @pytest.mark.parametrize("game_id, response", [("existing_game", 200),
-                                                   (INVALID_ID, 404)])
+                                                   (INVALID_ID, 404,),
+                                                   ("", 404)])
     def test_get_id_analytics(self, game_id, response):
         """
-        Tests GET /api/games/<game__id>/analytics for valid and invalid game_id
-        for correct HTTP responses.
+        Tests GET /api/games/<game__id>/analytics
 
         Passes when:
         - Valid game_id returns correct data and a HTTP 200 OK.
         - Invalid game_id returns an HTTP 404 Not Found.
+        - No game_id returns a HTTP 404 Not Found.
         """
         if game_id == "existing_game": game_id = self.existing_game["id"]
 
         r = requests.get(f"{self.server}api/games/{game_id}/analytics")
 
         assert r.status_code == response
+        if response == 200:
+            assert "game" in r.json() and "average_score" in r.json()
 
     @pytest.mark.parametrize("game_id, response", [("existing_game", 200),
-                                                   (INVALID_ID, 404)])
+                                                   (INVALID_ID, 404),
+                                                   ("", 404)])
     def test_get_reviews(self, game_id, response):
         """
-        Tests GET /api/games/<game__id>/reviews/ for a valid and invalid game_id.
+        Tests GET /api/games/<game__id>/reviews/
         
         Passes when:
         - Valid game_id returns a matching review and a HTTP 200 OK.
         - Invalid game_id returns a HTTP 404 Not Found.
+        - No game_id returns a HTTP 404 Not Found.
         """
         if game_id == "existing_game": game_id = self.existing_game["id"]
 

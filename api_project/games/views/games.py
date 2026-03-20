@@ -1,16 +1,15 @@
 """Defines the views for API endpoints regarding games."""
-from django.contrib.auth.password_validation import validate_password
 from django.db.models import Count
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from ..serializers import *
+from ..models import Game, Review
+from ..serializers import GameAnalyticsSerializer, GamesAnalyticsSerializer, GameSerializer, ReviewSerializer
 
 
-class Games(generics.ListAPIView):
+class Games(generics.ListAPIView, PageNumberPagination):
     queryset = Game.objects.all().order_by('-release_date')
-    pagination_class = PageNumberPagination
     known_params = ["genre", "platform", "developer", "publisher", "page", "title"]
     
     def get_queryset(self):
@@ -45,18 +44,26 @@ class Games(generics.ListAPIView):
                 return Response({"message": f"Game with id={pk} not found."},
                                 status=status.HTTP_404_NOT_FOUND)
         else:
-        # Checks that parameters are correct
+            # Checks that parameters are correct
             if any(param not in self.known_params
                    for param in request.query_params):
                 return Response({"message": f"Parameter name(s) not valid."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
+            # Gets analytics
             games = self.get_queryset()
+            serializer = GamesAnalyticsSerializer(games,
+                                                  context={'request': request})
             pages = self.paginate_queryset(games)
-            serializer = GameSerializer(pages, context={'request': request},
-                                        many=True, fields=['id', 'title', 'url',
-                                                        'release_date'])
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Gets games (paginated)
+            game_pages = GameSerializer(
+                pages, many=True, context={'request': request, 'games': games},
+                fields=['id', 'title', 'url', 'release_date']
+                )
+            # Combines the two serializers into a paginated response
+            return Response(
+                {"analytics": serializer.data, "games": game_pages.data},
+                status=status.HTTP_200_OK)
 
 
 @api_view()
@@ -64,6 +71,8 @@ def get_game_analytics(request, pk):
     """View for GET /api/games/<game__id>/analytics"""
     try:
         game = Game.objects.get(pk=pk)
+        serializer = GameAnalyticsSerializer(game, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
     except Game.DoesNotExist:
         return Response({"message": f"Game with id={pk} not found."},
                         status=status.HTTP_404_NOT_FOUND)

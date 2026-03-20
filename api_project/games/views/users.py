@@ -6,7 +6,8 @@ from rest_framework import generics, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from ..serializers import *
+from ..models import Review, User
+from ..serializers import ReviewSerializer, UserSerializer
 
 
 class Users(APIView):
@@ -82,17 +83,11 @@ class Users(APIView):
                             status=status.HTTP_404_NOT_FOUND)
         else: pk = kwargs["pk"]
         try:
-            user = User.objects.annotate(
-                reviews_n=Count("review"),
-                average_review_score=Avg("review__score")).get(pk=pk)
+            user = User.objects.get(pk=pk)
 
-            # Passes review data to serializer for processing
-            reviews = Review.objects.filter(user__id=user.id)
-            serializer = UserSerializer(user,
-                                        context={'request': request,
-                                                 'reviews': reviews}
-            )
+            serializer = UserSerializer(user, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
+
         except User.DoesNotExist:
             return Response({"message": f"User with id={pk} not found."},
                             status=status.HTTP_404_NOT_FOUND)

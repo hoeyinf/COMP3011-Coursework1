@@ -34,11 +34,11 @@ def existing_user():
 def existing_review():
     """Fixture for an existing review (from existing_user)."""
     return {"id": 67956,
-            "url": "http://127.0.0.1:8000/api/reviews/67956",
+            "url": f"{SERVER}api/reviews/67956",
             "user": {"username": "Filipe69",
-                     "url": "http://127.0.0.1:8000/api/users/2"},
+                     "url": f"{SERVER}api/users/2"},
             "game": {"title": "The Legend of Zelda Collector's Edition",
-                     "url": "http://127.0.0.1:8000/api/games/39"},
+                     "url": f"{SERVER}api/games/39"},
             "date": "2023-03-05",
             "score": 100,
             "content": "Édition légendaire, réuni 2 grands chefs du jeu vidéo."\
@@ -81,8 +81,8 @@ def existing_game():
             "platforms": ["GameCube"],
             "developers": ["Nintendo"],
             "publishers": ["Nintendo"],
-            "reviews": "http://127.0.0.1:8000/api/games/39/reviews/",
-            "reviews_n": 22}
+            "reviews": f"{SERVER}api/games/39/reviews/",
+            "analytics": f"{SERVER}api/games/39/analytics"}
 
 @pytest.fixture
 def new_review():
