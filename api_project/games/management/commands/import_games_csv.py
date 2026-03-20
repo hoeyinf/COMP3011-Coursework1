@@ -1,3 +1,4 @@
+"""Used to import game data from existing .csv file."""
 import csv
 from datetime import datetime
 from django.core.management.base import BaseCommand

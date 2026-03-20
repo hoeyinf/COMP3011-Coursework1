@@ -1,3 +1,4 @@
+"""Used to import review and user data from existing .csv file."""
 import csv
 import secrets
 from datetime import datetime
