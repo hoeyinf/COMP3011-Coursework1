@@ -237,7 +237,7 @@ class TestReviews:
         Tests PATCH /reviews/{review_id} valid requests, making sure that
         excluding a field has intended behaviour.
 
-        Passes when they all return a HTTP 200 OK.
+        Passes when they all return a HTTP 204 No Content.
         """
         # Sets data based on test conditions
         data = self.patch_review.copy()
