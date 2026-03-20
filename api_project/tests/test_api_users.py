@@ -6,11 +6,12 @@ INVALID_ID = 0
 
 class TestUsers:
     """
-    Tests authentication via Django's provided User model, as well as the
-    following API endpoints:
-    - GET /api/users/<user_id>
-    - GET /api/users/<user_id>/reviews/
-    - POST /api/users/
+    Tests authentication via JSON Web Token and the following API endpoints:
+    - GET /users/{user_id}
+    - GET /users/{user_id}/reviews/
+    - POST /users/
+    - POST /token/
+    - POST /token/refresh/
     """
     @pytest.fixture(autouse=True)
     def set_fixtures(self, server, valid_password, existing_review,
@@ -24,14 +25,18 @@ class TestUsers:
     @pytest.mark.parametrize("username, password, response", [
         ("admin", "valid_password", 200),
         ("idonotexist", "valid_password", 401),
-        ("admin", "thisisnotmypassword", 401)
+        ("admin", "thisisnotmypassword", 401),
+        ("", "valid_password", 400),
+        ("admin", "", 400)
         ])
     def test_get_jwt(self, username, password, response):
         """
-        Tests getting a jwt at POST /api/token/
+        Tests getting JSON Web Tokens at POST /token/
         
-        Passes when valid credentials retrieve an access and refresh token and a
-        HTTP 200 OK, and an invalid login returns a HTTP 401 Unauthorized.
+        Passes when:
+        - Valid credentials return an access and refresh token and a HTTP 200 OK.
+        - Invalid credentials return a HTTP 401 Unauthorized.
+        - Missing credentials return a HTTP 400 Bad Request.
         """
         if password == "valid_password": password = self.valid_password
 
@@ -43,13 +48,43 @@ class TestUsers:
             assert "access" in r.json() and "refresh" in r.json()
 
         assert r.status_code == response
+        
+    @pytest.mark.parametrize("refresh, response", [(True, 200), (False, 401),
+                                                   ("", 400)
+        ])
+    def test_refresh_jwt(self, refresh, response):
+        """
+        Tests getting a new access JSON Web Token at POST /token/refresh/
+        
+        Passes when:
+        - Valid refresh token returns an access token and a HTTP 200 OK.
+        - An invalid refresh token returns a HTTP 401 Unauthorized.
+        - A missing refresh token returns a HTTP 400 Bad Request.
+        """
+        # Get an access and refresh token
+        credentials = {"username": "admin", "password": self.valid_password}
+        login = requests.post(f"{self.server}api/token/", data=credentials)
+        assert login.status_code == 200, "Login for this test failed."
+
+        refresh_jwt = "notavalidtoken"
+        if refresh == "": refresh_jwt = refresh
+        elif refresh: refresh_jwt = login.json()["refresh"]
+
+        data = {"refresh": refresh_jwt}
+        r = requests.post(f"{self.server}api/token/refresh/", data=data)
+
+        # Checks that token is in response for a successful refresh
+        if response == 200:
+            assert "access" in r.json()
+
+        assert r.status_code == response
     
     @pytest.mark.parametrize("user_id, response", [("existing_user", 200),
                                                    (INVALID_ID, 404),
                                                    ("", 404)])
     def test_get(self, user_id, response):
         """
-        Tests GET /api/users/<user_id>
+        Tests GET /users/{user_id}
         
         Passes when:
         - Valid user_id returns the correct data and a HTTP 200 OK.
@@ -71,7 +106,7 @@ class TestUsers:
                                                    (INVALID_ID, 404)])
     def test_get_reviews(self, user_id, response):
         """
-        Tests GET /api/users/<user_id>/reviews/ on a valid and invalid user_id
+        Tests GET /users/{user_id}/reviews/ on a valid and invalid user_id
         for correct HTTP responses.
         
         Passes when:
@@ -94,7 +129,7 @@ class TestUsers:
 
     def test_get_reviews_size(self):
         """
-        Tests GET /api/users/<user_id>/reviews/ on an existing user
+        Tests GET /users/{user_id}/reviews/ on an existing user
         
         Passes when correct number of reviews is returned.
         """
@@ -115,7 +150,7 @@ class TestUsers:
         ])
     def test_post(self, username, password, message, response):
         """
-        Tests POST /api/users/ on a invalid usernames and passwords,
+        Tests POST /users/ on a invalid usernames and passwords,
         and a valid login.
         
         Passes when the correct error messages and HTTP status codes are returned.
@@ -144,7 +179,7 @@ class TestUsers:
     @pytest.mark.parametrize("field", ["username", "password", "neither"])
     def test_post_missing_credentials(self, field):
         """
-        Tests POST /api/users/ with no provided username or password.
+        Tests POST /users/ with no provided username or password.
         
         Passes when the correct HTTP status codes and error messages are
         returned.
@@ -160,7 +195,7 @@ class TestUsers:
     @pytest.mark.parametrize("field", ["username", "password", "extra"])
     def test_post_bad_syntax(self, field):
         """
-        Tests POST /api/users/ with bad syntax.
+        Tests POST /users/ with bad syntax.
         
         Passes when the correct HTTP status code and error message is
         returned.

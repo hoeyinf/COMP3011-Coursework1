@@ -1,11 +1,10 @@
 """Defines fixtures used for testing."""
 import datetime
-import os
 import pytest
 import requests
 
-SERVER = "https://hoeyinfoong.pythonanywhere.com/"
-PASSWORD = os.environ["VALID-PASSWORD"]
+SERVER = "http://127.0.0.1:8001/"
+PASSWORD = "nothtesameasdeployedpassword"
 
 @pytest.fixture
 def server():

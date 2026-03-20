@@ -10,7 +10,7 @@ class Reviews(APIView):
     """Views for CRUD on reviews (POST, GET, PATCH, DELETE)"""
             
     def get(self, request, *args, **kwargs):
-        """View for GET /api/reviews/<review__id>"""
+        """View for GET /reviews/{review_id}"""
 
         # Check that id is provided
         if "pk" not in self.kwargs:
@@ -26,7 +26,7 @@ class Reviews(APIView):
                             status=status.HTTP_404_NOT_FOUND)
     
     def post(self, request, *args, **kwargs):
-        """View for POST /api/reviews/"""
+        """View for POST /reviews/"""
         fields = ["game", "date", "score", "content"]
 
         # Checks that the correct endpoint (without review id) is being used
@@ -75,7 +75,7 @@ class Reviews(APIView):
                              status=status.HTTP_401_UNAUTHORIZED)
     
     def patch(self, request, *args, **kwargs):
-        """View for PATCH /api/reviews/<review__id>"""
+        """View for PATCH /reviews/{review_id}"""
         # Checks that data provided is correct
         if "pk" not in kwargs:
             return Response({"message": "Review not provided."},
@@ -117,7 +117,7 @@ class Reviews(APIView):
                             status=status.HTTP_401_UNAUTHORIZED)
     
     def delete(self, request, *args, **kwargs):
-        """View for DELETE /api/reviews/<review__id>"""
+        """View for DELETE /reviews/{review_id}"""
         # Checks that review id was provided
         if "pk" not in kwargs:
             return Response({"message": "Review not provided."},

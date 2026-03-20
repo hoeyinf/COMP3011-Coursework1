@@ -8,10 +8,10 @@ INVALID_ID = 0
 class TestReviews:
     """
     Tests API endpoints for reviews:
-    - GET /api/reviews/<review__id>
-    - POST /api/reviews/
-    - PATCH /api/reviews/<review__id>
-    - DELETE /api/reviews/<review__id>
+    - GET /reviews/{review_id}
+    - POST /reviews/
+    - PATCH /reviews/{review_id}
+    - DELETE /reviews/{review_id}
     """
 
     @pytest.fixture(autouse=True)
@@ -27,7 +27,7 @@ class TestReviews:
                                                      ("", 404)])
     def test_get_id(self, review_id, response):
         """
-        Tests GET /api/reviews/<review__id>
+        Tests GET /reviews/{review_id}
 
         Passes when:
         - Valid review_id returns the correct review and a HTTP 200 OK.
@@ -53,7 +53,7 @@ class TestReviews:
         ("Game with id=0 not found.", 404)])
     def test_post_invalid_request(self, message, response, admin_jwt):
         """
-        Tests POST /api/reviews/ for an unauthenticated user,
+        Tests POST /reviews/ for an unauthenticated user,
         an already existing review, and bad syntax in request data.
 
         Passes when:
@@ -92,7 +92,7 @@ class TestReviews:
         ("score", "five stars")])
     def test_post_invalid_values(self, field, value, admin_jwt):
         """
-        Tests POST /api/reviews/ for invalid values in request.
+        Tests POST /reviews/ for invalid values in request.
 
         Passes when they all return a HTTP 400 Bad Request.
         """
@@ -110,7 +110,7 @@ class TestReviews:
 
     def test_post_valid(self, admin_jwt):
         """
-        Test that POST /api/reviews/ works.
+        Test that POST /reviews/ works.
 
         Passes when it returns the correct data and a HTTP 201 Created.
         """
@@ -156,9 +156,7 @@ class TestReviews:
         ("Review with id=0 not found.", 404)])
     def test_patch_invalid_request(self, message, response, admin_jwt, valid_password):
         """
-        Tests PATCH /api/reviews/<review__id> for an unauthenticated user,
-        a non-existent review, on another user's review, and bad syntax in
-        request data.
+        Tests PATCH /reviews/{review_id} for invalid requests.
 
         Passes when:
         - Bad syntax returns a HTTP 400 Bad Request.
@@ -209,7 +207,7 @@ class TestReviews:
     @pytest.mark.parametrize("value", [-1, 101, "ten"])
     def test_patch_invalid_scores(self, value, admin_jwt):
         """
-        Tests PATCH /api/reviews/<review__id> for invalid scores in request.
+        Tests PATCH /reviews/{review_id} for invalid scores in request.
 
         Passes when they all return a HTTP 400 Bad Request and appropriate
         error message.
@@ -236,7 +234,7 @@ class TestReviews:
         ])
     def test_patch_valid(self, new_data, admin_jwt):
         """
-        Tests PATCH /api/reviews/<review__id> valid requests, making sure that
+        Tests PATCH /reviews/{review_id} valid requests, making sure that
         excluding a field has intended behaviour.
 
         Passes when they all return a HTTP 200 OK.
@@ -280,7 +278,7 @@ class TestReviews:
         ("You are not the author.", 403)])
     def test_delete(self, message, response, admin_jwt, valid_password):
         """
-        Tests DELETE /api/reviews/<review__id>.
+        Tests DELETE /reviews/{review_id}.
 
         Passes when:
         - Valid review_id is deleted and returns a HTTP 204 No Content.

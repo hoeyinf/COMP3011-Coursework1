@@ -13,7 +13,7 @@ class Users(APIView):
     """Views for creating and viewing users (POST, GET)"""
 
     def post(self, request, *args, **kwargs):
-        """View for POST /api/users/"""
+        """View for POST /users/"""
         # Checks that the correct endpoint (without user id) is being used
         if "pk" in kwargs:
             return Response({"message": "Wrong API endpoint. Use: "\
@@ -76,7 +76,7 @@ class Users(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get(self, request, *args, **kwargs):
-        """View for GET /api/users/<user__id>"""
+        """View for GET /users/{user_id}"""
         if "pk" not in kwargs:
             return Response({"message": "User id not provided in url."},
                             status=status.HTTP_404_NOT_FOUND)
@@ -97,7 +97,7 @@ class UserReviews(generics.ListAPIView):
     pagination_class = PageNumberPagination
     
     def get(self, request, pk):
-        """View for GET /api/users/<user__id>/reviews/"""
+        """View for GET /users/{user_id}/reviews/"""
         try:
             user = User.objects.get(pk=pk)
             reviews = self.queryset.filter(user=user).order_by('-date')

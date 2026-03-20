@@ -1,4 +1,4 @@
-"""Unit tests for API methods regarding games: /api/games/"""
+"""Unit tests for API methods regarding games."""
 import pytest
 import requests
 
@@ -6,8 +6,7 @@ INVALID_ID = 0
 
 class TestGamesId:
     """
-    Tests API endpoints GET /api/games/, including the use of query
-    parameters.
+    Tests API endpoints GET /games/, including the use of query parameters.
     """
 
     @pytest.fixture(autouse=True)
@@ -19,7 +18,7 @@ class TestGamesId:
 
     def test_get(self):
         """
-        Tests GET /api/games/.
+        Tests GET /games/.
 
         Passes when it returns a HTTP 200 OK.
         """
@@ -33,7 +32,7 @@ class TestGamesId:
                                                    ("", 200)])
     def test_get_id(self, game_id, response):
         """
-        Tests GET /api/games/<game__id>
+        Tests GET /games/{game_id}
 
         Passes when:
         - Valid game_id returns correct data and a HTTP 200 OK.
@@ -62,7 +61,7 @@ class TestGamesId:
                                                    ("", 404)])
     def test_get_id_analytics(self, game_id, response):
         """
-        Tests GET /api/games/<game__id>/analytics
+        Tests GET /games/{game_id}/analytics
 
         Passes when:
         - Valid game_id returns correct data and a HTTP 200 OK.
@@ -82,7 +81,7 @@ class TestGamesId:
                                                    ("", 404)])
     def test_get_reviews(self, game_id, response):
         """
-        Tests GET /api/games/<game__id>/reviews/
+        Tests GET /games/{game_id}/reviews/
         
         Passes when:
         - Valid game_id returns a matching review and a HTTP 200 OK.
@@ -114,7 +113,7 @@ class TestGamesId:
                                                   ["action", "pc"])])
     def test_category(self, category, value):
         """
-        Tests GET /api/games/?category=value. Values must be case-insensitive.
+        Tests GET /games/?category=value. Values must be case-insensitive.
 
         Passes when:
         - They each return a HTTP 200 OK.
@@ -137,7 +136,7 @@ class TestGamesId:
 
 def test_method_not_allowed(server):
     """
-    Tests POST /api/games/
+    Tests POST /games/
 
     Passes when it returns a HTTP 405 Method Not Allowed.
     """

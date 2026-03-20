@@ -33,7 +33,7 @@ class Games(generics.ListAPIView, PageNumberPagination):
         return super().get_queryset()
     
     def get(self, request, *args, **kwargs):
-        """View for GET /api/games/ and GET /api/games/<game__id>"""
+        """View for GET /games/ and GET /games/{game_id}"""
         if "pk" in kwargs:
             pk = kwargs["pk"]
             try:
@@ -68,7 +68,7 @@ class Games(generics.ListAPIView, PageNumberPagination):
 
 @api_view()
 def get_game_analytics(request, pk):
-    """View for GET /api/games/<game__id>/analytics"""
+    """View for GET /games/{game_id}/analytics"""
     try:
         game = Game.objects.get(pk=pk)
         serializer = GameAnalyticsSerializer(game, context={'request': request})
@@ -83,7 +83,7 @@ class GameReviews(generics.ListAPIView):
     pagination_class = PageNumberPagination
     
     def get(self, request, pk):
-        """View for GET /api/games/<game__id>/reviews/"""
+        """View for GET /games/{game_id}/reviews/"""
         try:
             game = Game.objects.get(pk=pk)
             reviews = self.queryset.filter(game=game).order_by('-date')
