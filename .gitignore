@@ -4,4 +4,4 @@ planning/
 __pycache__
 .pytest_cache
 .env
-.docx
+*.docx
