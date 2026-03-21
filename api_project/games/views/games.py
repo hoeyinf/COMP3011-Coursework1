@@ -58,7 +58,7 @@ class Games(generics.ListAPIView, PageNumberPagination):
             # Gets games (paginated)
             game_pages = GameSerializer(
                 pages, many=True, context={'request': request, 'games': games},
-                fields=['id', 'title', 'url', 'release_date']
+                fields=['title', 'url', 'release_date']
                 )
             # Combines the two serializers into a paginated response
             return Response(

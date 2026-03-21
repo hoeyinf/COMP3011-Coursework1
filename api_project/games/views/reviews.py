@@ -62,10 +62,11 @@ class Reviews(APIView):
             
             # Deserializes data and creates new object in database
             serializer = ReviewSerializer(data=request.data,
-                                          context={'request': request} )
+                                          context={'request': request})
             if serializer.is_valid():
                 serializer.save(user=request.user, game=game)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response({"url": serializer.data["url"]},
+                                status=status.HTTP_201_CREATED)
             else:
                 return Response(data=serializer.errors,
                                 status=status.HTTP_400_BAD_REQUEST)

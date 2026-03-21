@@ -41,7 +41,7 @@ class TestUsers:
         if password == "valid_password": password = self.valid_password
 
         credentials = {"username": username, "password": password}
-        r = requests.post(f"{self.server}api/token/", data=credentials)
+        r = requests.post(f"{self.server}api/token/", json=credentials)
 
         # Checks that tokens are in response for a successful login
         if response == 200:
@@ -63,7 +63,7 @@ class TestUsers:
         """
         # Get an access and refresh token
         credentials = {"username": "admin", "password": self.valid_password}
-        login = requests.post(f"{self.server}api/token/", data=credentials)
+        login = requests.post(f"{self.server}api/token/", json=credentials)
         assert login.status_code == 200, "Login for this test failed."
 
         refresh_jwt = "notavalidtoken"
@@ -71,7 +71,7 @@ class TestUsers:
         elif refresh: refresh_jwt = login.json()["refresh"]
 
         data = {"refresh": refresh_jwt}
-        r = requests.post(f"{self.server}api/token/refresh/", data=data)
+        r = requests.post(f"{self.server}api/token/refresh/", json=data)
 
         # Checks that token is in response for a successful refresh
         if response == 200:
@@ -161,7 +161,7 @@ class TestUsers:
                       "with letters."
 
         credentials = {"username": username, "password": password}
-        r = requests.post(f"{self.server}api/users/", data=credentials)
+        r = requests.post(f"{self.server}api/users/", json=credentials)
 
         # Checks that response contains the correct data
         if response == 201:
@@ -187,7 +187,7 @@ class TestUsers:
         # Omits fields for each test
         data = {}
         if field != "neither": data[field] = field
-        r = requests.post(f"{self.server}api/users/", data=data)
+        r = requests.post(f"{self.server}api/users/", json=data)
         
         assert (r.status_code == 400 and
                 r.json()["message"] == "Username/password not provided.")
@@ -206,7 +206,7 @@ class TestUsers:
         elif field == "password": data["pw"] = data.pop(field)
         else: data["extra"] = "Extra field for funsies."
         
-        r = requests.post(f"{self.server}api/users/", data=data)
+        r = requests.post(f"{self.server}api/users/", json=data)
         
         assert (r.status_code == 400 and
                 r.json()["message"] == "Provided data fields are incorrect.")

@@ -3,7 +3,7 @@ import datetime
 import pytest
 import requests
 
-SERVER = "http://127.0.0.1:8001/"
+SERVER = "http://127.0.0.1:8000/"
 PASSWORD = "nothtesameasdeployedpassword"
 
 @pytest.fixture

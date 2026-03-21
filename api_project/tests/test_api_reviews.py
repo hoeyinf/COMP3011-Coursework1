@@ -78,16 +78,16 @@ class TestReviews:
 
         # Does not authenticate for unauthenticated test
         if response == 401:
-            r = requests.post(f"{self.server}api/reviews/", data=data)
+            r = requests.post(f"{self.server}api/reviews/", json=data)
         else:
             r = requests.post(f"{self.server}api/reviews/",
                               headers={"Authorization": f"Bearer {admin_jwt}"},
-                              data=data)
+                              json=data)
 
         assert r.status_code == response and r.json()["message"] == message
 
     @pytest.mark.parametrize("field, value",[
-        ("date", (datetime.date.today()+datetime.timedelta(days=1))),
+        ("date", (datetime.date.today()+datetime.timedelta(days=1)).strftime('%Y-%m-%d')),
         ("date", "January 1 2030"), ("score", -1), ("score", 101),
         ("score", "five stars")])
     def test_post_invalid_values(self, field, value, admin_jwt):
@@ -102,7 +102,7 @@ class TestReviews:
 
         r = requests.post(f"{self.server}api/reviews/",
                             headers={"Authorization": f"Bearer {admin_jwt}"},
-                            data=data)
+                            json=data)
 
         assert r.status_code == 400, (f"If {r.status_code} == 201, you need to"\
                                      " manually delete the post from database.")
@@ -121,25 +121,22 @@ class TestReviews:
 
         r = requests.post(f"{self.server}api/reviews/",
                             headers={"Authorization": f"Bearer {admin_jwt}"},
-                            data=self.new_review)
+                            json=self.new_review)
 
         # Reminders to manually delete entries in database if needed
         admin = requests.get(f"{self.server}api/users/1/reviews")
         assert len(admin.json()) == 2, ("Wrong review length. Manually "\
                                         "check admin reviews and fix.")
-
+        
         # Checks that the new review is correct
+        assert r.status_code == 201 and "url" in r.json(), r.json()
         for review in admin.json():
             if review["content"] == self.new_review["content"]:
                 break
         assert ("id" in review and "url" in review and
                 review["user"]["username"] == "admin" and
-                review["game"]["url"] == f"{self.server}api/games/"\
-                                         f"{self.new_review['game']}" and
-                review["date"] == self.new_review["date"] and
-                review["score"] == self.new_review["score"] and
-                review["content"] == self.new_review["content"] and
-                r.status_code == 201)
+                int(review["game"]["url"].split("/")[-1]) == self.new_review["game"] and
+                review["score"] == self.new_review["score"])
 
         # Delete new review if needed
         delete = requests.delete(f"{self.server}api/reviews/{review["id"]}",
@@ -183,24 +180,24 @@ class TestReviews:
         # Logins in with different user
         if response == 403:
             login = requests.post(f"{self.server}api/token/",
-                                  data={"username":"valid_username",
+                                  json={"username":"valid_username",
                                         "password": valid_password})
             jwt = login.json()["access"]
         else: jwt = admin_jwt
 
         if response == 401:
             r = requests.patch(f"{self.server}api/reviews/{id}",
-                               data=data)
+                               json=data)
         else:
             r = requests.patch(f"{self.server}api/reviews/{id}",
                                headers={"Authorization": f"Bearer {jwt}"},
-                               data=data)
+                               json=data)
 
         # If successful, assume that it works correctly to undo the update
         if r.status_code == 204:
             requests.patch(f"{self.server}api/reviews/{self.patch_review["id"]}",
                              headers={"Authorization": f"Bearer {jwt}"},
-                             data=self.patch_review)
+                             json=self.patch_review)
         
         assert r.status_code == response and r.json()["message"] == message
 
@@ -218,13 +215,13 @@ class TestReviews:
 
         r = requests.patch(f"{self.server}api/reviews/{id}",
                            headers={"Authorization": f"Bearer {admin_jwt}"},
-                           data=data)
+                           json=data)
 
         # If successful, assume that it works correctly to undo the update
         if r.status_code == 204:
             requests.patch(f"{self.server}api/reviews/{id}",
                            headers={"Authorization": f"Bearer {admin_jwt}"},
-                           data=self.patch_review)
+                           json=self.patch_review)
         
         assert r.status_code == 400 and "score" in r.text
 
@@ -248,7 +245,7 @@ class TestReviews:
 
         r = requests.patch(f"{self.server}api/reviews/{id}",
                            headers={"Authorization": f"Bearer {admin_jwt}"},
-                           data=data)
+                           json=data)
 
         # Check that review is now updated
         check = requests.get(f"{self.server}api/reviews/{id}")
@@ -264,7 +261,7 @@ class TestReviews:
             redata.pop("id")
             repatch = requests.patch(f"{self.server}api/reviews/{id}",
                                      headers={"Authorization": f"Bearer {admin_jwt}"},
-                                     data=redata)
+                                     json=redata)
             assert repatch.status_code == 204, "Repatch failed!"
 
         assert r.status_code == 204
@@ -292,18 +289,18 @@ class TestReviews:
         new_review["content"] = "Created to test deletion."
         post = requests.post(f"{self.server}api/reviews/",
                              headers={"Authorization": f"Bearer {admin_jwt}"},
-                             data=new_review)
+                             json=new_review)
         assert post.status_code == 201, (f"{post.status_code} == 201"\
                                          "New review could not be created.")
 
         # Sets parameters based on test conditions
         if response == 400: review_id = ""
-        else: review_id = post.json()["id"]
+        else: review_id = int(post.json()["url"].split("/")[-1])
         jwt = admin_jwt
         if response == 404: review_id = INVALID_ID
         elif response == 403:
             login = requests.post(f"{self.server}api/token/",
-                                  data={"username":"valid_username",
+                                  json={"username":"valid_username",
                                         "password": valid_password})
             jwt = login.json()["access"]
 

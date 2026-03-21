@@ -102,7 +102,6 @@ class ReviewSerializer(DynamicFieldsSerializer):
     class Meta:
         model = Review
         fields = ["id", "url", "user", "game", "date", "score", "content"]
-        read_only_fields = ["id", "url"]
 
     def validate_date(self, date):
         """Validator for review date"""
