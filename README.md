@@ -1,5 +1,4 @@
-# COMP3011-Coursework1
-Videogame Review REST API.
+# Videogame Review REST API.
 Live deployment server at: https://hoeyinfoong.pythonanywhere.com/<br>
 Example of a live GET API endpoint at: https://hoeyinfoong.pythonanywhere.com/api/games/
 
@@ -29,12 +28,26 @@ API Documentation is in APIDocumentation.pdf
 The format for each endpoint is server + "api" + endpoint.
 For example, with server = http://127.0.0.1:8000/ and endpoint = `/games/`,<br>
 the actual GET endpoint is http://127.0.0.1:8000/api/games/<br>
-instead of http://127.0.0.1:8000/games/
+instead of http://127.0.0.1:8000/games/<br>
 For live deployment it would be: https://hoeyinfoong.pythonanywhere.com/api/games/
 
+## Structure
+Models are defined in api_project/games/models.py
+
+The python scripts used to populate the database are in api_project/games/management/commands/. However the .csv files used are not in this repository.
+
+Views are located in api_project/games/views/. Views are modularized into different files for the API endpoints of users, games, and reviews respectively.
+
+Serializers are located in api_project/games/serializers.py. More detail on them is in TechnicalReport.pdf.
+
+URLs are defined in api_project/api_project/urls.py and api_project/games/urls.py.
+
+
 ## Testing
-There are pytest unit tests available to check if the APIs are running correctly.
-1. In api_project/tests/conftest.py, change the `SERVER` constant on line 6 to be your development server. If the server is http://127.0.0.1:8000/, this step is unnecessary.
+There are pytest unit tests available to check if the APIs are running correctly. They are located in api_project/tests/.
+
+To use the unit tests:<br>
+1. In api_project/tests/conftest.py, change the `SERVER` constant on line 6 to be your development server. If the server is localhost 8000 i.e. http://127.0.0.1:8000/, this step is unnecessary.
 2. While the server is running, open a new terminal and use `pytest` in the same folder that the server was run from.<br>
 The terminal should then show the tests running and their results.
 

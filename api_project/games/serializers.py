@@ -1,6 +1,6 @@
 """
-Contains serializers that allow for easier serialization and deserialization of data into JSON
-for API calls.
+Contains serializers that allow for easier serialization and deserialization of
+data into JSON format.
 """
 import datetime
 from django.db.models import Avg, Count
